@@ -12,7 +12,7 @@ public:
 	void RegisterGlobalFunctions(Infinity::RegistrationFunction registerFunction) override;
 private:
 //	static void TestFunction(Infinity::Enfusion::Enscript::FunctionContext* args, Infinity::Enfusion::Enscript::FunctionResult* result);
-	static void TestFunction(Infinity::Enfusion::Enscript::Framework::EnArray* arr);
+	static void TestFunction(Infinity::Enfusion::Enscript::Framework::ManagedScriptInstance* inst);
 	static void TestGlobalFunction(char* message);
 	static void TestMethod(__int64 callerPtr, char* message);
 };

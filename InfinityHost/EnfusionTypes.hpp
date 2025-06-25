@@ -107,23 +107,35 @@ namespace Infinity {
 					char pad_0008[64]; //0x0008
 				}; //Size: 0x0048
 
-				class typename_function
+#pragma pack(push,1)
+				struct typename_function
 				{
-				private:
-					char pad_0000[84]; //0x0000
-				public:
-					uint32_t some_value; //0x0054
-					class ScriptContext* pContext; //0x0058
-					char* name; //0x0060
-				}; //Size: 0x0068
+					// 0x00–0x07: skip whatever lives here
+					uint8_t         _pad0[0x08];
+
+					// 0x08–0x0F: the real code pointer
+					void* fnPtr;
+
+					// 0x10–0x3F: skip up to the context field at 0x40
+					uint8_t         _pad1[0x40 - 0x10];  // = 0x30 bytes
+
+					// 0x40–0x47: the script-context pointer
+					ScriptContext* pContext;
+
+					// 0x48–0x4F: the name pointer
+					char* name;
+
+					// 0x50–0x67: any trailing data (zero it out if you like)
+					uint8_t         _pad2[0x68 - 0x50];  // = 0x18 bytes
+				};
+				static_assert(sizeof(typename_function) == 0x68, "typename_function must be 0x68 bytes");
+#pragma pack(pop)
 
 				class typename_functions
 				{
 				public:
-					class typename_function* List[9]; //0x0000
-				private:
-					char pad_0048[128]; //0x0048
-				}; //Size: 0x00C8
+					class typename_function* List[64]; //0x0000
+				};
 
 				class type
 				{
