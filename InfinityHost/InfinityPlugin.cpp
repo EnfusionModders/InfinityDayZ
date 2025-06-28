@@ -58,6 +58,10 @@ void Infinity::LoadPlugins()
     }
 }
 
+//Function pointer for calling/invoking Enforce script 
+Infinity::FnCallFunction Infinity::CallEnforceFunction = reinterpret_cast<Infinity::FnCallFunction>(Infinity::Utils::FindPattern("48 89 6C 24 ? 56 57 41 54 41 55 41 57 48 83 EC ? 48 8B E9", GetModuleHandle(NULL), 0));
+
+
 void Infinity::RegisterScriptClass(std::unique_ptr<Infinity::BaseScriptClass> pScriptClass)
 {
 	//add script instance to class manager and begin init

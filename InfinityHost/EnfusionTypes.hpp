@@ -19,6 +19,7 @@ namespace Infinity {
 			{
 				PNativeArgument List[8];
 			} Arguments, * PArguments;
+			
 			class FunctionContext
 			{
 				PArguments Arguments;
@@ -29,15 +30,21 @@ namespace Infinity {
 						return NULL;
 					return Arguments->List[idx];
 				}
+
+				PNativeArgument SetArgument(int idx, PNativeArgument arg)
+				{
+					if (!Arguments || !Arguments->List)
+						return NULL;
+					return Arguments->List[idx] = arg;
+				}
 			};
+
 			typedef struct FunctionResult {
 				PNativeArgument Result;
 			} FunctionResult, * PFunctionResult;
 
 
 			namespace Framework {
-
-				// Created with ReClass.NET by KN4CK3R
 
 				class ScriptContextTypes
 				{
@@ -57,7 +64,7 @@ namespace Infinity {
 					char pad_0010[76]; //0x0010
 				public:
 					int32_t num_types; //0x005C
-					class ScriptContextTypes* pTypes; //0x0060
+					class ScriptContextTypes* pTypes; //0x0060 | 0x0068
 				private:
 					char pad_0068[56]; //0x0068
 				}; //Size: 0x00A0
@@ -110,61 +117,50 @@ namespace Infinity {
 #pragma pack(push,1)
 				struct typename_function
 				{
-					// 0x00–0x07: skip whatever lives here
-					uint8_t         _pad0[0x08];
-
-					// 0x08–0x0F: the real code pointer
-					void* fnPtr;
-
-					// 0x10–0x3F: skip up to the context field at 0x40
-					uint8_t         _pad1[0x40 - 0x10];  // = 0x30 bytes
-
-					// 0x40–0x47: the script-context pointer
-					ScriptContext* pContext;
-
-					// 0x48–0x4F: the name pointer
-					char* name;
-
-					// 0x50–0x67: any trailing data (zero it out if you like)
-					uint8_t         _pad2[0x68 - 0x50];  // = 0x18 bytes
+					uint8_t _pad0[0x08];	// 0x00–0x07: skip whatever lives here
+					void* fnPtr;				// 0x08–0x0F: the real code pointer
+					uint8_t _pad1[0x40 - 0x10];  // = 0x30 bytes  0x10–0x3F: skip up to the context field at 0x40
+					ScriptContext* pContext; // 0x40–0x47: the script-context pointer
+					char* name;				// 0x48–0x4F: function name pointer
 				};
-				static_assert(sizeof(typename_function) == 0x68, "typename_function must be 0x68 bytes");
-#pragma pack(pop)
 
-				class typename_functions
+				struct typename_functions
 				{
-				public:
-					class typename_function* List[64]; //0x0000
+					class typename_function* List[10]; //0x0000, 10 here because "class Class" in Enforce has 10 functions
 				};
+#pragma pack(pop)
 
 				class type
 				{
 				private:
-					char pad_0000[8]; //0x0000
+					char pad_0000[8];            // 0x0000
 				public:
-					uint32_t flags; //0x0008
+					uint32_t flags;              // 0x0008
 				private:
-					char pad_000C[4]; //0x000C
+					char pad_000C[4];            // 0x000C
 				public:
-					char* name; //0x0010
-					class ScriptModule* pScriptModule; //0x0018
+					char* name;           // 0x0010
+					ScriptModule* pScriptModule; // 0x0018
 				private:
-					char pad_0020[8]; //0x0020
+					char pad_0020[8];            // 0x0020
 				public:
-					class type* pParent; //0x0028
+					type* pParent;        // 0x0028
 				private:
-					char pad_0030[8]; //0x0030
+					char pad_0030[8];            // 0x0030
 				public:
-					class typename_variables* pVariables; //0x0038
+					typename_variables* pVariables; // 0x0038
 				private:
-					char pad_0040[4]; //0x0040
+					char pad_0040[4];            // 0x0040
 				public:
-					uint32_t variableCount; //0x0044
-					class typename_functions* pFunctions; //0x0048 used when running a func
+					uint32_t     variableCount;  // 0x0044
+					typename_functions* pFunctions; // 0x0048
 				private:
-					char pad_0050[144]; //0x0050
+					char _pad_0050[4];           // 0x0050–0x53
 				public:
-				}; //Size: 0x00E0
+					uint32_t     functionCount;  // 0x0054
+				private:
+					char _pad_0058[136];         // 0x0058–0xDF (fills out to sizeof 0xE0)
+				};
 
 				class WeakPtrTracker
 				{
@@ -223,8 +219,6 @@ namespace Infinity {
 				public:
 					char pad_0000[64]; //0x0000
 				}; //Size: 0x0040
-
-
 
 				class KeyValuePair
 				{

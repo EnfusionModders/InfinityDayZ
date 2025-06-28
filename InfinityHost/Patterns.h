@@ -1,3 +1,4 @@
 #pragma once
+#include "InfinityPlugin.h"
 
-void* FindPattern(std::string pattern, HMODULE module, int offset);
+void* Infinity::Utils::FindPattern(std::string pattern, HMODULE module, int offset);

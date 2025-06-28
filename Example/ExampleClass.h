@@ -3,16 +3,20 @@
 #include <InfinityPlugin.h>
 #include <EnfusionTypes.hpp>
 
+using namespace Infinity;
+using namespace Infinity::Logging;
+using namespace Infinity::Enfusion::Enscript;
+using namespace Infinity::Enfusion::Enscript::Framework;
 
 class ExampleClass : public Infinity::BaseScriptClass {
 public:
 	ExampleClass();
-	void RegisterStaticClassFunctions(Infinity::RegistrationFunction registerMethod) override;
-	void RegisterDynamicClassFunctions(Infinity::RegistrationFunction registerMethod) override;
-	void RegisterGlobalFunctions(Infinity::RegistrationFunction registerFunction) override;
+	void RegisterStaticClassFunctions(RegistrationFunction registerMethod) override;
+	void RegisterDynamicClassFunctions(RegistrationFunction registerMethod) override;
+	void RegisterGlobalFunctions(RegistrationFunction registerFunction) override;
 private:
-//	static void TestFunction(Infinity::Enfusion::Enscript::FunctionContext* args, Infinity::Enfusion::Enscript::FunctionResult* result);
-	static void TestFunction(Infinity::Enfusion::Enscript::Framework::ManagedScriptInstance* inst);
-	static void TestGlobalFunction(char* message);
-	static void TestMethod(__int64 callerPtr, char* message);
+	//static void TestFunction(Infinity::Enfusion::Enscript::Framework::ManagedScriptInstance* inst, __int64 strPtr);
+	static void TestFunction(FunctionContext* args, FunctionResult* result);
+	static void TestGlobalFunction();
+	static void TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* args);
 };

@@ -7,7 +7,7 @@ class BaseScriptManager {
 public:
 	BaseScriptManager();
 	~BaseScriptManager();
-	bool Register(std::unique_ptr<Infinity::BaseScriptClass> pScriptClass); // Handles logic for storing, initializing & registeration of global function
+	bool Register(std::unique_ptr<Infinity::BaseScriptClass> pScriptClass); // Handles logic for storing, initializing & registeration of custom script class
 	Infinity::BaseScriptClass* GetClassByName(char* name);
 	int GetTotalClassCount();
 private:

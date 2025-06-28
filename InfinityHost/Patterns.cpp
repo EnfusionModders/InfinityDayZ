@@ -13,7 +13,7 @@ bool check_match(char* address, const char* pattern, const char* mask);
 void* findPatternMask(const char* pattern, const char* mask, HMODULE module, int offset);
 
 
-void* FindPattern(std::string bn_pattern, HMODULE module, int offset)
+void* Infinity::Utils::FindPattern(std::string bn_pattern, HMODULE module, int offset)
 {
 	//char moduleName[255];
 	//GetModuleBaseNameA(GetCurrentProcess(), module, moduleName, 255);

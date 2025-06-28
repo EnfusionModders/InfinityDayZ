@@ -8,6 +8,7 @@
 #include "ScriptEngine.h"
 #include "detours.h"
 
+
 const std::string PATTERN_REG_ENGINE_CLASS_FUNCTION = "48 83 EC 38 45 0F B6 C8";
 const std::string PATTERN_REG_STATIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24";
 const std::string PATTERN_REG_DYNAMIC_PROTO_FUNCTION = "E9 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B DA";
@@ -84,7 +85,7 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 		);
 
 	static FnRegisterClassStaticFunctions FnRegStaticFns = nullptr;
-	auto pFnRegStatic = (uint8_t*)FindPattern(PATTERN_REG_STATIC_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
+	auto pFnRegStatic = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_STATIC_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
 	if (pFnRegStatic)
 		FnRegStaticFns = reinterpret_cast<FnRegisterClassStaticFunctions>(pFnRegStatic);
 
@@ -118,7 +119,7 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 		);
 
 	static FnRegisterClassFunctions FnRegFns = nullptr;
-	auto pImm = (uint8_t*)FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION,GetModuleHandle(NULL), 1);
+	auto pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION,GetModuleHandle(NULL), 1);
 	if (pImm)
 	{
 		uint32_t rel = *reinterpret_cast<uint32_t*>(pImm);
@@ -159,15 +160,16 @@ bool InitScriptEngine()
 	//Hook detour onto the engine function that handles setup of script declared typenames
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
-	static auto ptrFnRegisterClass = FindPattern(PATTERN_REG_ENGINE_CLASS_FUNCTION, GetModuleHandle(NULL), 0);
+	static auto ptrFnRegisterClass = Infinity::Utils::FindPattern(PATTERN_REG_ENGINE_CLASS_FUNCTION, GetModuleHandle(NULL), 0);
 	f_EngineRegisterClass = (FnEngineRegisterClass)(ptrFnRegisterClass);
 	DetourAttach(&(PVOID&)f_EngineRegisterClass, EngineRegisterClass);
 	DetourTransactionCommit();
 
+
 	//Detour for registering global script functions
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
-	static auto ptrFnRegisterGlobalFn = FindPattern(PATTERN_REG_GLOBAL_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
+	static auto ptrFnRegisterGlobalFn = Infinity::Utils::FindPattern(PATTERN_REG_GLOBAL_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
 	f_RegisterGlobalFunc = (FnRegisterGlobalFunc)(ptrFnRegisterGlobalFn);
 	DetourAttach(&(PVOID&)f_RegisterGlobalFunc, RegisterGlobalFunction);
 	DetourTransactionCommit();

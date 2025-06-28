@@ -2,6 +2,8 @@
 
 #include <functional>
 #include <vector>
+#include <Windows.h>
+#include "EnfusionTypes.hpp"
 
 #ifdef INFINITYHOST_EXPORTS
 #define _CLINKAGE __declspec(dllexport)
@@ -17,6 +19,7 @@ namespace Infinity {
 	// -------------------------------------------------------------------------
 	// script class registration
 	typedef std::function<bool(const char*, void*)> RegistrationFunction;
+	typedef char(__fastcall* FnCallFunction)(Infinity::Enfusion::Enscript::Framework::ScriptModule* a1, Infinity::Enfusion::Enscript::FunctionContext* a2, Infinity::Enfusion::Enscript::Framework::typename_function* a3);
 
 	class _CLINKAGE BaseScriptClass {
 	public:
@@ -35,6 +38,8 @@ namespace Infinity {
 		bool hasRegistered;
 	};
 
+	_CLINKAGE extern FnCallFunction CallEnforceFunction;
+
 	// Call this routine during OnPluginLoad to register custom script classes
 	_CLINKAGE void RegisterScriptClass(std::unique_ptr<BaseScriptClass> pScriptClass); // register a script class 
 
@@ -47,7 +52,7 @@ namespace Infinity {
 		_CLINKAGE void Debugln(const char* format, ...);
 	}
 	namespace Utils {
-		//_CLINKAGE void* FindPattern(const char* binary_ninja_pattern);
+		_CLINKAGE void* FindPattern(std::string pattern, HMODULE module, int offset);
 	}
 	namespace Enfusion {
 		//_CLINKAGE bool RegisterKeyPath(const char* directory, const char* key, bool allow_write = true); // register path to $key: for file access
