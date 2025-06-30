@@ -13,6 +13,9 @@ namespace Infinity {
 			typedef struct NativeArgument
 			{
 				void* Value;
+				void* VariableName;
+				uint8_t _pad0[0x20 - 0x10];
+				void* pContext;
 			} NativeArgument, * PNativeArgument;
 
 			typedef struct Arguments
@@ -22,8 +25,8 @@ namespace Infinity {
 			
 			class FunctionContext
 			{
-				PArguments Arguments;
 			public:
+				PArguments Arguments;
 				PNativeArgument GetArgument(int idx)
 				{
 					if (!Arguments || !Arguments->List)

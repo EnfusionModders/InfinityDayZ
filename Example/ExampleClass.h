@@ -15,7 +15,7 @@ public:
 	void RegisterDynamicClassFunctions(RegistrationFunction registerMethod) override;
 	void RegisterGlobalFunctions(RegistrationFunction registerFunction) override;
 private:
-	//static void TestFunction(Infinity::Enfusion::Enscript::Framework::ManagedScriptInstance* inst, __int64 strPtr);
+	//static void TestFunction(ManagedScriptInstance* inst, __int64 strPtr);
 	static void TestFunction(FunctionContext* args, FunctionResult* result);
 	static void TestGlobalFunction();
 	static void TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* args);
