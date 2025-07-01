@@ -1,6 +1,6 @@
 ﻿#include <InfinityPlugin.h>
 #include <EnfusionTypes.hpp>
-#include <Patterns.h>
+
 #include "ExampleClass.h"
 
 ExampleClass::ExampleClass() : BaseScriptClass("ExampleClass") {}
@@ -26,32 +26,8 @@ void ExampleClass::TestGlobalFunction()
 	Debugln("global method was called!");
 }
 
-FunctionContext* CreateManualContext() {
-    auto* ctx = (FunctionContext*)std::calloc(1, sizeof(FunctionContext));
-    if (!ctx) return nullptr;
-
-    auto* args = (Arguments*)std::calloc(1, sizeof(Arguments));
-    if (!args) {
-        std::free(ctx);
-        return nullptr;
-    }
-
-    ctx->Arguments = args;
-    return ctx;
-}
-
-
-using FnLookupMethod = __int64(__fastcall*)(__int64 modulePtr, char* name);
-static FnLookupMethod  RealLookupMethod = nullptr;
-
-using FnCallUpMethod = __int64(__fastcall*)(__int64 a1, __int64 a2, int a3, ...);
-static FnCallUpMethod  FnCallupMethod = nullptr;
-
-using FnCleanupMethodCall = void(__fastcall*)(__int64 a1);
-static FnCleanupMethodCall FnCallCleanup = nullptr;
-
 /*
-* Dynamic proto native methods will always include callerPtr as the first arg
+* Dynamic proto native methods will always include selfPtr as the first arg
 * eg; if CGame has a proto native FnTest(arg), it's first arg will be a ptr to CGame instance followed by regular args. 
 */
 void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* args)
@@ -59,45 +35,13 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
     Debugln("TestMethod args -> @  0x%llX", (unsigned long long)args);
     Debugln("TestMethod selfPtr -> @  0x%llX", (unsigned long long)selfPtr);
     Debugln("TestMethod pScriptModule -> @  0x%llX", (unsigned long long)selfPtr->pType->pScriptModule); //Correct
-
-    void* patternLookup = Infinity::Utils::FindPattern(
-        "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B FA 48 8B D9 48 85 C9 74 ? 48 89 54 24",
-        GetModuleHandle(NULL),
-        0
-    );
-    RealLookupMethod = reinterpret_cast<FnLookupMethod>(patternLookup);
-
-    void* patternLookup2 = Infinity::Utils::FindPattern(
-        "44 89 44 24 ? 4C 89 4C 24 ? 53",
-        GetModuleHandle(NULL),
-        0
-    );
-    FnCallupMethod = reinterpret_cast<FnCallUpMethod>(patternLookup2);
     
-
-    void* patternLookup3 = Infinity::Utils::FindPattern(
-        "48 83 EC ? ? ? ? 4D 85 C9 74 ? 49 8B C9",
-        GetModuleHandle(NULL),
-        0
-    );
-    FnCallCleanup = reinterpret_cast<FnCleanupMethodCall>(patternLookup3);
-
-    __int64 idx = RealLookupMethod((__int64)selfPtr->pType, (char*)"BallSackMethodModded");
-    Debugln("  => returned index = %d", reinterpret_cast<int*>(idx));
-    int64_t v22 = 0;
-
-    __int64 callUpRet = FnCallupMethod((__int64)selfPtr, (__int64)&v22, idx, (char*)"a message for you!");
-
-    Debugln("  => callUpRet = 0x%llX  v22: 0x%llX", (unsigned long long)callUpRet, v22);
-
-
-    FnCallCleanup(reinterpret_cast<int64_t>(&v22));
-    Debugln("  => v22 = 0x%llX after cleanup call", v22);
-   
+    const char* retRes = (const char*)Infinity::CallEnforceMethod(selfPtr, "JtMethod", (char*)"Hello this is a message!");
+    Debugln("CallEnforceMethod returned: %s", retRes);
     // pause here until you hit a key or debugger resumes
     //while (!GetAsyncKeyState(VK_F12)) {
-     //   Sleep(1);
-    //}
+    //    Sleep(1);
+   // }
 
     int fnCount = selfPtr->pType->pScriptModule->pType->functionCount;
 
@@ -159,7 +103,7 @@ void ExampleClass::TestFunction(Infinity::Enfusion::Enscript::FunctionContext* a
     const char* input = (const char*)args->GetArgument(0)->Value; // arg0 is a string
 
     Println("Testing Function: %s", input);
-    result->Result->Value = reinterpret_cast<void*>((char*)"Bitch ass!");
+    result->Result->Value = reinterpret_cast<void*>((char*)"Some callback string");
     
 
     /*

@@ -14,6 +14,7 @@ const std::string PATTERN_REG_STATIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC
 const std::string PATTERN_REG_DYNAMIC_PROTO_FUNCTION = "E9 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B DA";
 const std::string PATTERN_REG_GLOBAL_PROTO_FUNCTION = "48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 41 8B F1 48 8B E9";
 
+
 BaseScriptManager* g_BaseScriptManager = NULL;
 FnEngineRegisterClass f_EngineRegisterClass = NULL;
 FnRegisterGlobalFunc f_RegisterGlobalFunc = NULL;

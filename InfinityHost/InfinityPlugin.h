@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <functional>
 #include <vector>
@@ -19,7 +19,12 @@ namespace Infinity {
 	// -------------------------------------------------------------------------
 	// script class registration
 	typedef std::function<bool(const char*, void*)> RegistrationFunction;
-	typedef char(__fastcall* FnCallFunction)(Infinity::Enfusion::Enscript::Framework::ScriptModule* a1, Infinity::Enfusion::Enscript::FunctionContext* a2, Infinity::Enfusion::Enscript::Framework::typename_function* a3);
+	typedef char(__fastcall* FnCallFunction)(Infinity::Enfusion::Enscript::Framework::ScriptModule* pModule, Infinity::Enfusion::Enscript::FunctionContext* pArgs, Infinity::Enfusion::Enscript::Framework::typename_function* pFn);
+	
+	//dynamic instance enforce method call
+	typedef __int64(__fastcall* FnLookupMethod)(__int64 classPtr, const char* methodName);
+	typedef __int64(__fastcall* FnCallUpMethod)(__int64 instancePtr, Infinity::Enfusion::Enscript::FunctionResult* a2, int idx, ...);
+	typedef void(__fastcall* FnCleanupMethodCall)(Infinity::Enfusion::Enscript::FunctionResult* a1);
 
 	class _CLINKAGE BaseScriptClass {
 	public:
@@ -56,5 +61,46 @@ namespace Infinity {
 	}
 	namespace Enfusion {
 		//_CLINKAGE bool RegisterKeyPath(const char* directory, const char* key, bool allow_write = true); // register path to $key: for file access
+	}
+
+	_CLINKAGE extern FnLookupMethod f_LookUpMethod;
+	_CLINKAGE extern FnCallUpMethod f_CallUpMethod;
+	_CLINKAGE extern FnCleanupMethodCall f_CleanupUpMethodCall;
+
+	/*
+	* Use this function to lookup and call an Enforce level method at a given enforce class instance
+	* Returns void* result data of the method call.
+	* NOTE: You cannot call a proto engine method using this! Strictly regular class methods/functions 
+	*/
+	template<typename... Args>
+	void* CallEnforceMethod(Enfusion::Enscript::Framework::ManagedScriptInstance* pInstance, const std::string& methodName, Args&&... args) {
+
+		if (!pInstance) {
+			Infinity::Logging::Errorln("CallEnforceMethod: call failed, pInstance cannot be null!");
+			return false;
+		}
+
+		if (methodName.empty()) {
+			Infinity::Logging::Errorln("CallEnforceMethod: call failed, method name cannot be empty!");
+			return false;
+		}
+
+		int idx = f_LookUpMethod(reinterpret_cast<__int64>(pInstance->pType), methodName.c_str());
+		if (idx == -1){
+			Infinity::Logging::Errorln("CallEnforceMethod: call failed, method could not be found! Check name");
+			return false;
+		}
+
+		Infinity::Enfusion::Enscript::FunctionResult ret;
+		auto callUpRet = f_CallUpMethod(
+			reinterpret_cast<__int64>(pInstance),
+			&ret,
+			idx,
+			std::forward<Args>(args)...
+		);
+
+		f_CleanupUpMethodCall(&ret);
+
+		return ret.Result->Value;
 	}
 }
