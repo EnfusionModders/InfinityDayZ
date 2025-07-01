@@ -48,14 +48,16 @@ namespace Infinity {
 
 
 			namespace Framework {
+				class type;
+				class ScriptContext;
+				class ScriptModule;
+				class WeakPtrTracker;
+				class ManagedScriptInstance;
 
-				class ScriptContextTypes
-				{
-				public:
-					class type* pType[305]; //0x0000
-				private:
-					char pad_0988[64]; //0x0988
-				}; //Size: 0x09C8
+				struct typename_variable;
+				struct typename_variables;
+				struct typename_function;
+				struct typename_functions;
 
 				class ScriptContext
 				{
@@ -64,14 +66,23 @@ namespace Infinity {
 				public:
 					class type* pType; //0x0008
 				private:
-					char pad_0010[76]; //0x0010
+					char pad_0010[32]; //0x0010
 				public:
-					int32_t num_types; //0x005C
-					class ScriptContextTypes* pTypes; //0x0060 | 0x0068
+					char* pName; //0x0030
+					typename_functions* pGlobalFunctions; //0x0038
 				private:
-					char pad_0068[56]; //0x0068
-				}; //Size: 0x00A0
-
+					char pad_0040[4]; //0x0040
+				public:
+					int32_t GlobalFunctionCount; //0x0044
+					typename_variables* pGlobalVariables; //0x0048
+				private:
+					char pad_0050[4]; //0x0050
+				public:
+					int32_t GlobalVarCount; //0x0054
+				private:
+					char pad_0058[104]; //0x0058
+				}; //Size: 0x00C0
+			
 				class ScriptModule
 				{
 				private:
@@ -79,27 +90,31 @@ namespace Infinity {
 				public:
 					class type* pType; //0x0008
 				private:
-					char pad_0010[8]; //0x0010
+					char pad_0010[32]; //0x0010
 				public:
-					int32_t ref_count; //0x0018
+					char* pName; //0x0030
+					typename_functions* pGlobalFunctions; //0x0038
 				private:
-					char pad_001C[12]; //0x001C
+					char pad_0040[4]; //0x0040
 				public:
-					char* module_name; //0x0028
+					int32_t GlobalFunctionCount; //0x0044
+					typename_variables* pGlobalVariables; //0x0048
 				private:
-					char pad_0030[80]; //0x0030
+					char pad_0050[4]; //0x0050
 				public:
-					class ScriptContext* pContext; //0x0080
-					class ScriptModule* pParent; //0x0088
+					int32_t GlobalVarCount; //0x0054
 				private:
-					char pad_0090[64]; //0x0090
-				}; //Size: 0x00D0
+					char pad_0058[48]; //0x0058
+				public:
+					class ScriptContext* pContext; //0x0088
+				private:
+					char pad_0090[48]; //0x0090
+				}; //Size: 0x00C0
 
 				class typename_variable
 				{
-				private:
-					char pad_0000[8]; //0x0000
 				public:
+					void* varPtr; //0x0000
 					char* variable_name; //0x0008
 				private:
 					char pad_0010[16]; //0x0010
@@ -109,13 +124,10 @@ namespace Infinity {
 					char pad_0028[32]; //0x0028
 				}; //Size: 0x0048
 
-				class typename_variables
+				struct typename_variables
 				{
-				public:
-					class typename_variable* pVariable; //0x0000
-				private:
-					char pad_0008[64]; //0x0008
-				}; //Size: 0x0048
+					class typename_variable* List[32]; //0x0000
+				};
 
 #pragma pack(push,1)
 				struct typename_function
@@ -217,12 +229,6 @@ namespace Infinity {
 					char pad_0120[672]; //0x0120
 				}; //Size: 0x03C0
 
-				class anyobject
-				{
-				public:
-					char pad_0000[64]; //0x0000
-				}; //Size: 0x0040
-
 				class KeyValuePair
 				{
 				private:
@@ -242,7 +248,7 @@ namespace Infinity {
 					KeyValuePair Pairs[255]; //0x0000
 				}; //Size: 0x0120
 
-				class Hashmap
+				class EnMap
 				{
 				public:
 					char pad_0000[8]; //0x0000

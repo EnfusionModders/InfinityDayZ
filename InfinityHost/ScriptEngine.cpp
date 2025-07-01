@@ -30,8 +30,10 @@ static int totalRegisteredClasses = 0;
 unsigned int*** RegisterGlobalFunction(__int64 a1, const char* name, void* addr, unsigned int a4)
 {
 	//Hold onto context
-	if (!g_pEnforceScriptContext)
+	if (!g_pEnforceScriptContext) {
+		Debugln("g_pEnforceScriptContext: @ -> 0x%llX ", (unsigned long long)a1);
 		g_pEnforceScriptContext = a1;
+	}
 
 	/* TODO:: we could also overwrite already defined functions from the game and point it to something else!
 	*         this would be nice for wanting to disable some game engine functionaility for security like CopyFile()

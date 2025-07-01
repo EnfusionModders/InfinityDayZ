@@ -21,9 +21,9 @@ void ExampleClass::RegisterGlobalFunctions(Infinity::RegistrationFunction regist
 };
 
 
-void ExampleClass::TestGlobalFunction()
+void ExampleClass::TestGlobalFunction(char* someData)
 {
-	Debugln("global method was called!");
+	Debugln("global method was called! %s  @ 0x%llX", someData, (unsigned long long)someData);
 }
 
 /*
@@ -34,8 +34,12 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
 {
     Debugln("TestMethod args -> @  0x%llX", (unsigned long long)args);
     Debugln("TestMethod selfPtr -> @  0x%llX", (unsigned long long)selfPtr);
-    Debugln("TestMethod pScriptModule -> @  0x%llX", (unsigned long long)selfPtr->pType->pScriptModule); //Correct
+    Debugln("TestMethod pScriptModule -> @  0x%llX", (unsigned long long)selfPtr->pType->pScriptModule);
+    Debugln("TestMethod pScriptContext -> @  0x%llX", (unsigned long long)selfPtr->pType->pScriptModule->pContext);
     
+    Debugln("TestMethod pScriptModule name -> %s", selfPtr->pType->pScriptModule->pName);
+    
+    //Example, calling dynamic method within a class instance (for non proto class declared methods!)
     const char* retRes = (const char*)Infinity::CallEnforceMethod(selfPtr, "JtMethod", (char*)"Hello this is a message!");
     Debugln("CallEnforceMethod returned: %s", retRes);
     // pause here until you hit a key or debugger resumes
@@ -43,10 +47,12 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
     //    Sleep(1);
    // }
 
-    int fnCount = selfPtr->pType->pScriptModule->pType->functionCount;
+    //Example Calling a global proto method at a given ScriptContext
+    int fnCount = selfPtr->pType->pScriptModule->pContext->GlobalFunctionCount;
 
-    type* t = selfPtr->pType->pScriptModule->pType;
-    typename_functions* tfns = t->pFunctions;
+    typename_functions* tfns = selfPtr->pType->pScriptModule->pContext->pGlobalFunctions;
+
+    using RawFn = char* (__fastcall*)(char* someData);
 
     for (int i = 0; i < fnCount; ++i)
     {
@@ -61,39 +67,13 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
             (unsigned long long)fn->fnPtr,
             (unsigned long long)fn->pContext);
 
-        /*
-        if (std::string(fn->name).find("CallFunction") != std::string::npos)
+        
+        if (std::string(fn->name).find("GlobalFnTest") != std::string::npos)
         {
-            Debugln("0x%llX", (unsigned long long)args->GetArgument(1)->pContext);
-            //Test out calling an Enforce function
-            auto* fnCtx = CreateManualContext(); //Create context
-            Debugln("fnCtx: 0x%llX", (unsigned long long)fnCtx);
-
-            // slot 0 = some pointer
-            auto* ptrSlot = new NativeArgument{ (void*)selfPtr };
-            ptrSlot->pContext = fn->pContext;
-            fnCtx->Arguments->List[0] = ptrSlot;
-            
-            // slot 1 = method name
-            auto* nameSlot = new NativeArgument{ (void*)"BallSackMethodModded" };
-            nameSlot->pContext = fn->pContext;
-            fnCtx->Arguments->List[1] = nameSlot;
-
-            
-            // slot 2 = return-value buffer
-            auto* retSlot = new NativeArgument{ reinterpret_cast<void*>(const_cast<char*>("someRetBuffer") ) };
-            fnCtx->Arguments->List[2] = retSlot;
-
-
-            // slot 3 = extra parameter
-            auto* paramSlot = new NativeArgument{ reinterpret_cast<void*>(const_cast<char*>("someParam")) };
-            fnCtx->Arguments->List[3] = paramSlot;
-            
-
-            char ok = Infinity::CallEnforceFunction(selfPtr->pType->pScriptModule, fnCtx, fn);
+            RawFn callFn = reinterpret_cast<RawFn>(fn->fnPtr);
+            callFn((char*)"HELLO!!!");
             break;
         }
-        */
     }
 }
 

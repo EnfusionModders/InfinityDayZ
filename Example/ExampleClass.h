@@ -17,6 +17,6 @@ public:
 private:
 	//static void TestFunction(ManagedScriptInstance* inst, __int64 strPtr);
 	static void TestFunction(FunctionContext* args, FunctionResult* result);
-	static void TestGlobalFunction();
+	static void TestGlobalFunction(char* somedata);
 	static void TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* args);
 };
