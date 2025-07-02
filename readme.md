@@ -2,6 +2,7 @@
 
 Enfusion Infinity 
 ===============
+(README is not accurate to this version, WIP.)
 
 ## What is it?
 
