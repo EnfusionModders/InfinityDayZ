@@ -9,10 +9,15 @@
 #include "detours.h"
 
 //Pattern
-const std::string PATTERN_REG_ENGINE_CLASS_FUNCTION = "48 83 EC 38 45 0F B6 C8";
-const std::string PATTERN_REG_STATIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24";
-const std::string PATTERN_REG_DYNAMIC_PROTO_FUNCTION = "E9 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B DA";
-const std::string PATTERN_REG_GLOBAL_PROTO_FUNCTION = "48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 41 8B F1 48 8B E9";
+const std::string PATTERN_REG_ENGINE_CLASS_FUNCTION = "48 83 EC 38 45 0F B6 C8"; //BOTH
+
+const std::string PATTERN_REG_STATIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24"; //REATIL
+//const std::string PATTERN_REG_STATIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC ? 0F B6 44 24 ? 48 8B F1"; //DIAG
+
+const std::string PATTERN_REG_DYNAMIC_PROTO_FUNCTION = "E9 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B DA"; //RETAIL
+//const std::string PATTERN_REG_DYNAMIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24"; //DIAG
+
+const std::string PATTERN_REG_GLOBAL_PROTO_FUNCTION = "48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 41 8B F1 48 8B E9"; //BOTH
 
 
 BaseScriptManager* g_BaseScriptManager = NULL;
@@ -124,6 +129,9 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 		int a5
 		);
 
+	
+	//	RETAIL EXE
+
 	static FnRegisterClassFunctions FnRegFns = nullptr;
 	auto pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION,GetModuleHandle(NULL), 1);
 	if (pImm)
@@ -132,6 +140,17 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 		uint64_t fnAddr = (uint64_t)pImm + 4 + rel;
 		FnRegFns = reinterpret_cast<FnRegisterClassFunctions>(fnAddr);
 	}
+	
+
+	// DIAG EXE
+	/*
+	static FnRegisterClassFunctions FnRegFns = nullptr;
+	auto pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
+	if (pImm)
+	{
+		FnRegFns = reinterpret_cast<FnRegisterClassFunctions>(pImm);
+	}
+	*/
 
 	if (!FnRegFns)
 	{
