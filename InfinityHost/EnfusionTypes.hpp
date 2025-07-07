@@ -9,6 +9,16 @@
 namespace Infinity {
 	namespace Enfusion {
 		namespace Enscript {
+
+			//——— Enforce engine type tags ---
+			static constexpr uint32_t ARG_TYPE_INT = 0x00020000; // signed int
+			static constexpr uint32_t ARG_TYPE_STRING = 0x00050000; // string
+
+			//——— flags  ———
+			static constexpr uint32_t ARG_FLAG_NONE = 0x00000000;
+			static constexpr uint32_t ARG_FLAG_SKIP = 0x00000040; // skip / readonly / reserved
+
+
 			//--- custom function context data structure
 			typedef struct NativeArgument
 			{
@@ -110,6 +120,24 @@ namespace Infinity {
 				private:
 					char pad_0090[48]; //0x0090
 				}; //Size: 0x00C0
+
+				class ManagedClass
+				{
+				private:
+					char pad_0000[24]; //0x0000
+				public:
+					class ScriptModule* pScriptModule; //0x0018
+				private:
+					char pad_0020[40]; //0x0020
+				public:
+					typename_functions* pFunctions; //0x0048
+				private:
+					char pad_0050[4]; //0x0050
+				public:
+					int32_t functionsCount; //0x0054
+				private:
+					char pad_0058[236]; //0x0058
+				}; //Size: 0x0144
 
 				class typename_variable
 				{

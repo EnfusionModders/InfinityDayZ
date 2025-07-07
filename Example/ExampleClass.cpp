@@ -8,27 +8,111 @@ ExampleClass::ExampleClass() : BaseScriptClass("ExampleClass") {}
 //static proto function that live within ExampleClass on Enforce side of things
 void ExampleClass::RegisterStaticClassFunctions(Infinity::RegistrationFunction registerMethod){
 	registerMethod("TestFunction", &ExampleClass::TestFunction);
+	registerMethod("TestStaticNativeMethod", &ExampleClass::TestStaticNativeMethod);
 };
 
 //dynamic proto native functions that live within ExampleClass on Enforce side of things
 void ExampleClass::RegisterDynamicClassFunctions(Infinity::RegistrationFunction registerMethod) {
 	registerMethod("TestMethod", &ExampleClass::TestMethod);
+	registerMethod("BigMethod", &ExampleClass::BigMethod);
 };
 
 //These are global, doesn't live within our Enforce typename declaration, but it points it's functionality here :)
 void ExampleClass::RegisterGlobalFunctions(Infinity::RegistrationFunction registerFunction) {
-	registerFunction("GlobalFnTest", &ExampleClass::TestGlobalFunction);
+	registerFunction("GlobalFnTest", &ExampleClass::GlobalFnTest);
+	registerFunction("GlobalNonNativeFn", &ExampleClass::GlobalNonNativeFn);
 };
 
 
-void ExampleClass::TestGlobalFunction(char* someData)
+/*
+* proto native void GlobalFnTest(string someData);
+*/
+void ExampleClass::GlobalFnTest(char* someData)
 {
-	Debugln("global method was called! %s  @ 0x%llX", someData, (unsigned long long)someData);
+	Debugln("GlobalFnTest was called! %s  @ 0x%llX", someData, (unsigned long long)someData);
 }
 
 /*
-* Dynamic proto native methods will always include selfPtr as the first arg
-* eg; if CGame has a proto native FnTest(arg), it's first arg will be a ptr to CGame instance followed by regular args. 
+* proto void GlobalNonNativeFn(string someData);
+*/
+void ExampleClass::GlobalNonNativeFn(Infinity::Enfusion::Enscript::FunctionContext* args, Infinity::Enfusion::Enscript::FunctionResult* result)
+{
+    char* data = (char*)args->GetArgument(0)->Value;
+    result->Result->Value = (char*)"LOL!";
+    
+    Debugln("GlobalNonNativeFn called! %s result ctx: 0x%llX  full @ 0x%llX", data, (unsigned long long)result->Result, (unsigned long long)result);
+
+   // while (!GetAsyncKeyState(VK_F12)) {
+ //       Sleep(1);
+   // }
+}
+
+/*
+* proto native void BigMethod(string someData);
+* 
+* Dynamic proto methods will always include selfPtr as the first arg
+* eg; if ExampleClass has a proto native/non-native FnTest(arg), it's first arg will be a ptr to ExampleClass instance followed by regular args.
+*/
+void ExampleClass::BigMethod(ManagedScriptInstance* selfPtr, ManagedScriptInstance* playerIdentity)
+{
+    Debugln("ExampleClass::BigMethod called!");
+
+    using RawFn = int(__fastcall*)(ManagedScriptInstance*, FunctionContext*, PNativeArgument*);
+    int fnCount = playerIdentity->pType->functionCount;
+    typename_functions* tfns = playerIdentity->pType->pFunctions;
+    for (int i = 0; i < fnCount; ++i)
+    {
+        typename_function* fn = tfns->List[i];
+        if (!fn || !fn->name || !fn->pContext)
+            break;
+
+        Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
+            i,
+            (unsigned long long)fn,
+            fn->name,
+            (unsigned long long)fn->fnPtr,
+            (unsigned long long)fn->pContext);
+
+        if (std::string(fn->name).find("GetPlainName") != std::string::npos)
+        {
+            RawFn callFn = reinterpret_cast<RawFn>(fn->fnPtr);
+
+            PNativeArgument retArg = CreateNativeArgument(
+                /* value */        fn->name, //THIS CANNOT BE NULL/EMPTY
+                /* variableName */ "#return.",
+                /* pContext */     playerIdentity->pType->pScriptModule->pContext,
+                /* typeTag */      ARG_TYPE_STRING,
+                /* flags */        ARG_FLAG_NONE
+            );
+            FunctionResult* retCtx = CreateFunctionResult(retArg);
+
+            Debugln("retArg @ 0x%llX full ctx @ 0x%llX", (unsigned long long)retCtx->Result, (unsigned long long)retCtx);
+
+            callFn(playerIdentity, nullptr, &retCtx->Result);
+
+            char* name = static_cast<char*>(retArg->Value);
+            Debugln("GetPlainName() returned: %s  @ 0x%llX", name, (unsigned long long)retArg);
+
+            //Cleanup
+            DestroyFunctionResult(retCtx);
+            break;
+        }
+    }
+
+}
+
+char* ExampleClass::TestStaticNativeMethod(char* data)
+{
+    Debugln("TestStaticNativeMethod was called! %s", data);
+    return (char*)"Here's your return!";
+}
+
+/*
+* proto void TestMethod();
+* 
+* Dynamic proto methods will always include selfPtr as the first arg
+* eg; if CGame has a proto native/non-native TestMethod(arg), it's first arg will be a ptr to CGame instance followed by regular args.
+* if the method is "non-native" -> first arg points to self instance, 2nd arg is FunctionContext, 3rd arg is FunctionResult
 */
 void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* args)
 {
@@ -38,8 +122,10 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
     Debugln("TestMethod pScriptContext -> @  0x%llX", (unsigned long long)selfPtr->pType->pScriptModule->pContext);
     
     Debugln("TestMethod pScriptModule name -> %s", selfPtr->pType->pScriptModule->pName);
-    
-    //Example, calling dynamic method within a class instance (for non proto class declared methods!)
+
+    Infinity::CallEnforceMethod(selfPtr, "GetTestName");
+
+    //Example, calling dynamic method within a class instance (for non proto/engine linked class declared methods!)
     const char* retRes = (const char*)Infinity::CallEnforceMethod(selfPtr, "JtMethod", (char*)"Hello this is a message!");
     Debugln("CallEnforceMethod returned: %s", retRes);
     // pause here until you hit a key or debugger resumes
@@ -47,9 +133,8 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
     //    Sleep(1);
    // }
 
-    //Example Calling a global proto method at a given ScriptContext
+    //Example Calling a global "proto native" method at a given ScriptContext
     int fnCount = selfPtr->pType->pScriptModule->pContext->GlobalFunctionCount;
-
     typename_functions* tfns = selfPtr->pType->pScriptModule->pContext->pGlobalFunctions;
 
     using RawFn = char* (__fastcall*)(char* someData);
@@ -71,10 +156,99 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
         if (std::string(fn->name).find("GlobalFnTest") != std::string::npos)
         {
             RawFn callFn = reinterpret_cast<RawFn>(fn->fnPtr);
-            callFn((char*)"HELLO!!!");
+            callFn((char*)"Hey from C++");
             break;
         }
     }
+
+    Debugln("");
+    Debugln("");
+    Debugln("");
+
+    //Example calling a class defined dynamic "proto native" method
+    using RawFn_ = char* (__fastcall*)(ManagedScriptInstance*, char*);
+    int fnCount_ = selfPtr->pType->functionCount;
+    typename_functions* tfns_ = selfPtr->pType->pFunctions;
+    for (int i = 0; i < fnCount_; ++i)
+    {
+        typename_function* fn_ = tfns_->List[i];
+        if (!fn_ || !fn_->name || !fn_->pContext)
+            break;
+
+        Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
+            i,
+            (unsigned long long)fn_,
+            fn_->name,
+            (unsigned long long)fn_->fnPtr,
+            (unsigned long long)fn_->pContext);
+
+        if (std::string(fn_->name).find("BigMethod") != std::string::npos)
+        {
+            RawFn_ callFn_ = reinterpret_cast<RawFn_>(fn_->fnPtr);
+            callFn_(selfPtr, (char*)"Hey From C++");
+            break;
+        }
+    }
+
+    Debugln("");
+    Debugln("");
+    Debugln("");
+
+    //Example calling a class defined static "proto native" method
+    using RawFn___ = char* (__fastcall*)(char*);
+    int fnCount___ = selfPtr->pType->functionCount;
+    typename_functions* tfns___ = selfPtr->pType->pFunctions;
+    for (int i = 0; i < fnCount___; ++i)
+    {
+        typename_function* fn___ = tfns___->List[i];
+        if (!fn___ || !fn___->name || !fn___->pContext)
+            break;
+
+        Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
+            i,
+            (unsigned long long)fn___,
+            fn___->name,
+            (unsigned long long)fn___->fnPtr,
+            (unsigned long long)fn___->pContext);
+
+        if (std::string(fn___->name).find("TestStaticNativeMethod") != std::string::npos)
+        {
+            RawFn___ callFn___ = reinterpret_cast<RawFn___>(fn___->fnPtr);
+            char* strRET = callFn___((char*)"hey there from C++!");
+            Debugln("strRET: %s", strRET);
+            break;
+        }
+    }
+
+    Debugln("");
+    Debugln("");
+    Debugln("");
+    /*
+    //Example calling a global scope non-native proto function
+    using RawFn__ = char* (__fastcall*)();
+    int fnCount__ = selfPtr->pType->pScriptModule->pContext->GlobalFunctionCount;
+    typename_functions* tfns__ = selfPtr->pType->pScriptModule->pContext->pGlobalFunctions;
+    for (int i = 0; i < fnCount__; ++i)
+    {
+        typename_function* fn__ = tfns__->List[i];
+        if (!fn__ || !fn__->name || !fn__->pContext)
+            break;
+
+        Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
+            i,
+            (unsigned long long)fn__,
+            fn__->name,
+            (unsigned long long)fn__->fnPtr,
+            (unsigned long long)fn__->pContext);
+
+        if (std::string(fn__->name).find("GlobalNonNativeFn") != std::string::npos)
+        {
+            RawFn__ callFn__ = reinterpret_cast<RawFn__>(fn__->fnPtr);
+            callFn__();
+            break;
+        }
+    }
+    */
 }
 
 //void ExampleClass::TestFunction(ManagedScriptInstance* inst, __int64 strPtr)

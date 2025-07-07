@@ -73,7 +73,6 @@ void start(GInfinity* g_pInfinity)
 		}
 	}
 
-
 	// game modules are loading, time to load our stuff
 	g_pInfinity->LoadPlugins();
 }

@@ -8,7 +8,7 @@
 #include "ScriptEngine.h"
 #include "detours.h"
 
-
+//Pattern
 const std::string PATTERN_REG_ENGINE_CLASS_FUNCTION = "48 83 EC 38 45 0F B6 C8";
 const std::string PATTERN_REG_STATIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24";
 const std::string PATTERN_REG_DYNAMIC_PROTO_FUNCTION = "E9 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B DA";
@@ -75,6 +75,9 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 
 	if (ptr->HasRegistered())
 		return classInstance; //skip, this instance was already reg..
+
+	//Hold onto a ptr to the Enforce static instance of class definitions (useful for calling static member functions)
+	ptr->SetEnfClassPtr(classInstance);
 
 	Debugln("RegisterEngineClass -> %s  @  0x%llX", className, (unsigned long long)classInstance);
 

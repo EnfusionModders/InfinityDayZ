@@ -17,6 +17,9 @@ public:
 private:
 	//static void TestFunction(ManagedScriptInstance* inst, __int64 strPtr);
 	static void TestFunction(FunctionContext* args, FunctionResult* result);
-	static void TestGlobalFunction(char* somedata);
+	static void GlobalFnTest(char* somedata);
 	static void TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* args);
+	static void BigMethod(ManagedScriptInstance*, ManagedScriptInstance*);
+	static void GlobalNonNativeFn(FunctionContext* args, FunctionResult* result);
+	static char* TestStaticNativeMethod(char*);
 };

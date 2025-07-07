@@ -19,8 +19,7 @@ namespace Infinity {
 	// -------------------------------------------------------------------------
 	// script class registration
 	typedef std::function<bool(const char*, void*)> RegistrationFunction;
-	typedef char(__fastcall* FnCallFunction)(Infinity::Enfusion::Enscript::Framework::ScriptModule* pModule, Infinity::Enfusion::Enscript::FunctionContext* pArgs, Infinity::Enfusion::Enscript::Framework::typename_function* pFn);
-	
+
 	//dynamic instance enforce method call
 	typedef __int64(__fastcall* FnLookupMethod)(__int64 classPtr, const char* methodName);
 	typedef __int64(__fastcall* FnCallUpMethod)(__int64 instancePtr, Infinity::Enfusion::Enscript::FunctionResult* a2, int idx, ...);
@@ -32,6 +31,8 @@ namespace Infinity {
 		const char* GetName();
 		bool HasRegistered();
 		void SetRegistered();
+		void SetEnfClassPtr(__int64 ptr);
+		Infinity::Enfusion::Enscript::Framework::ManagedClass* GetEnfClassPtr();
 		// override this function to register your script routines to this class.
 		virtual void RegisterStaticClassFunctions(RegistrationFunction registerMethod);
 		// override this function to register your script routines to this class.
@@ -41,9 +42,8 @@ namespace Infinity {
 	protected:
 		const char* className;
 		bool hasRegistered;
+		Infinity::Enfusion::Enscript::Framework::ManagedClass* pEnfClass;
 	};
-
-	_CLINKAGE extern FnCallFunction CallEnforceFunction;
 
 	// Call this routine during OnPluginLoad to register custom script classes
 	_CLINKAGE void RegisterScriptClass(std::unique_ptr<BaseScriptClass> pScriptClass); // register a script class 
@@ -67,10 +67,18 @@ namespace Infinity {
 	_CLINKAGE extern FnCallUpMethod f_CallUpMethod;
 	_CLINKAGE extern FnCleanupMethodCall f_CleanupUpMethodCall;
 
+	//Helper functions to create function calling & return context
+	_CLINKAGE Infinity::Enfusion::Enscript::FunctionContext* CreateFunctionContext();
+	_CLINKAGE Infinity::Enfusion::Enscript::PNativeArgument CreateNativeArgument(void* value, const char* variableName, void* pContext, uint32_t typeTag = 0x00050000, uint32_t flags = 0x00000000);
+	_CLINKAGE void DestroyNativeArgument(Infinity::Enfusion::Enscript::PNativeArgument arg);
+	_CLINKAGE void DestroyFunctionContext(Infinity::Enfusion::Enscript::FunctionContext* ctx);
+	_CLINKAGE Infinity::Enfusion::Enscript::PFunctionResult CreateFunctionResult(Infinity::Enfusion::Enscript::PNativeArgument resultArg);
+	_CLINKAGE void DestroyFunctionResult(Infinity::Enfusion::Enscript::PFunctionResult fr, bool freeInnerArgument = true);
+	
 	/*
 	* Use this function to lookup and call an Enforce level method at a given enforce class instance
 	* Returns void* result data of the method call.
-	* NOTE: You cannot call a proto engine method using this! Strictly regular class methods/functions 
+	* NOTE: You cannot call a proto engine method using this! Strictly regular class methods/functions (non static!)
 	*/
 	template<typename... Args>
 	void* CallEnforceMethod(Enfusion::Enscript::Framework::ManagedScriptInstance* pInstance, const std::string& methodName, Args&&... args) {
