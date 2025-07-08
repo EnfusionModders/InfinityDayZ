@@ -52,7 +52,7 @@ unsigned int*** RegisterGlobalFunction(__int64 a1, const char* name, void* addr,
 __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 a3)
 {
 	__int64 classInstance = f_EngineRegisterClass(moduleCtx, className, a3); //trampoline to original engine call, we want the instance
-	
+
 	int toRegister = g_BaseScriptManager->GetTotalClassCount();
 	if (toRegister == 0)
 		return classInstance; //nothing to register yet...plugins probably still loading
@@ -86,7 +86,8 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 		__int64 a2,
 		const char* a3,
 		void* a4,
-		int a5
+		int a5,
+		...
 		);
 
 	static FnRegisterClassStaticFunctions FnRegStaticFns = nullptr;
@@ -102,13 +103,13 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 
 	// build one lambda that wraps the engine call:
 	auto registerFunc = [moduleCtx, classInstance](const char* fName, void* fPtr) -> bool {
-		__int64 res = FnRegStaticFns(
-			moduleCtx,
-			classInstance,
-			fName,
-			fPtr,
-			0
-		);
+		__int64 res = NULL;
+		if (IsDiagBuild())
+		{
+			res = FnRegStaticFns(moduleCtx, classInstance, fName, fPtr, 0, 1);//!One extra param on diag exe
+		}else{
+			res = FnRegStaticFns(moduleCtx, classInstance, fName, fPtr, 0); //!One less param on retail exe
+		}
 		return (res != 0);
 	};
 	ptr->RegisterStaticClassFunctions(registerFunc);
@@ -123,10 +124,10 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 		int a5
 		);
 
-	
 	static FnRegisterClassFunctions FnRegFns = nullptr;
 	void* pImm = nullptr;
 
+	//Diag exe uses different pattern
 	if (IsDiagBuild())
 	{
 		pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
@@ -163,7 +164,6 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 		return (res != 0);
 	};
 	ptr->RegisterDynamicClassFunctions(registerDynamicFunc);
-	
 
 	ptr->SetRegistered();
 	++totalRegisteredClasses;

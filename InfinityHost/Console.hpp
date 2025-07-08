@@ -53,15 +53,11 @@ inline bool IsParamDefined(const wchar_t* t)
 	return found;
 }
 
-inline bool IsDiagBuild()
-{
-	return IsParamDefined(L"-diag");
-}
+const static bool IS_DIAG = IsParamDefined(L"-diag");
+inline bool IsDiagBuild(){ return IS_DIAG; }
 
-inline bool IsDebug()
-{
-	return IsParamDefined(L"-debugprint");
-}
+const static bool IS_DEBUG = IsParamDefined(L"-debugprint");
+inline bool IsDebug(){ return IS_DEBUG; }
 
 inline bool IsConsoleDisabled()
 {
