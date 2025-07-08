@@ -4,6 +4,11 @@
 #include <io.h>
 #include <fcntl.h>
 
+#include <chrono>
+#include <ctime>
+#include <string>
+#include <filesystem>
+
 #include "ScriptRegistrator.h"
 #include "ScriptEngine.h"
 #include "InfinityPlugin.h"
@@ -18,26 +23,69 @@ GInfinity globalobj; // hold infinity in memory indefinitely
 void start(GInfinity* g_pInfinity)
 {
 	// if no console, create one
-	if (!GetConsoleWindow())
+	if (!IsConsoleDisabled())
 	{
-		if (AllocConsole())
+		if (!GetConsoleWindow())
 		{
-			HANDLE handle_out = GetStdHandle(STD_OUTPUT_HANDLE);
-			int hCrt = _open_osfhandle((long)handle_out, _O_TEXT);
-			FILE* hf_out = _fdopen(hCrt, "w");
-			setvbuf(hf_out, NULL, _IONBF, 1);
-			*stdout = *hf_out;
+			if (AllocConsole())
+			{
+				HANDLE handle_out = GetStdHandle(STD_OUTPUT_HANDLE);
+				int hCrt = _open_osfhandle((long)handle_out, _O_TEXT);
+				FILE* hf_out = _fdopen(hCrt, "w");
+				setvbuf(hf_out, NULL, _IONBF, 1);
+				*stdout = *hf_out;
 
-			HANDLE handle_in = GetStdHandle(STD_INPUT_HANDLE);
-			hCrt = _open_osfhandle((long)handle_in, _O_TEXT);
-			FILE* hf_in = _fdopen(hCrt, "r");
-			setvbuf(hf_in, NULL, _IONBF, 128);
-			*stdin = *hf_in;
+				HANDLE handle_in = GetStdHandle(STD_INPUT_HANDLE);
+				hCrt = _open_osfhandle((long)handle_in, _O_TEXT);
+				FILE* hf_in = _fdopen(hCrt, "r");
+				setvbuf(hf_in, NULL, _IONBF, 128);
+				*stdin = *hf_in;
 
-			freopen("CONOUT$", "w", stdout);
-			freopen("CONOUT$", "w", stderr);
+				freopen("CONOUT$", "w", stdout);
+				freopen("CONOUT$", "w", stderr);
+			}
 		}
 	}
+	else
+	{
+		// 1) find the Plugins folder next to the host EXE
+		char exePath[MAX_PATH];
+		GetModuleFileNameA(NULL, exePath, MAX_PATH);
+		std::string dir(exePath);
+		auto pos = dir.find_last_of("\\/");
+		if (pos != std::string::npos)
+			dir.resize(pos);
+		std::filesystem::path pluginsDir = std::filesystem::path(dir) / "Plugins";
+		std::filesystem::create_directories(pluginsDir);
+
+		// 2) build timestamped filename
+		using clock = std::chrono::system_clock;
+		auto now = clock::now();
+		std::time_t t = clock::to_time_t(now);
+		struct tm tm;
+		localtime_s(&tm, &t);
+		char timestamp[32];
+		strftime(timestamp, sizeof(timestamp),
+			"plugins_%Y-%m-%d_%H-%M-%S.log", &tm);
+
+		std::filesystem::path logFile = pluginsDir / timestamp;
+		auto path = logFile.string();
+
+		// 3) Redirect stdout → logFile
+		FILE* fOut = freopen(path.c_str(), "w", stdout);
+		if (fOut)
+			setvbuf(stdout, nullptr, _IONBF, 0);
+		else
+			freopen("NUL", "w", stdout);
+
+		// 4) Redirect stderr → same logFile
+		FILE* fErr = freopen(path.c_str(), "w", stderr);
+		if (fErr)
+			setvbuf(stderr, nullptr, _IONBF, 0);
+		else
+			freopen("NUL", "w", stderr);
+	}
+	
 
 	bool diag = IsDiagBuild();
 	WORD attr = diag ? COL_DIAG : COL_RETAIL;

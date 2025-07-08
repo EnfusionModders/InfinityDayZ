@@ -36,7 +36,7 @@ static constexpr WORD COL_DIAG =
 	FOREGROUND_INTENSITY) |
 	BACKGROUND_BLUE;
 
-inline bool IsDiagBuild()
+inline bool IsParamDefined(const wchar_t* t)
 {
 	int argc = 0;
 	LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -44,7 +44,7 @@ inline bool IsDiagBuild()
 
 	bool found = false;
 	for (int i = 1; i < argc; ++i) {
-		if (_wcsicmp(argv[i], L"-diag") == 0) {
+		if (_wcsicmp(argv[i], t) == 0) {
 			found = true;
 			break;
 		}
@@ -53,21 +53,19 @@ inline bool IsDiagBuild()
 	return found;
 }
 
+inline bool IsDiagBuild()
+{
+	return IsParamDefined(L"-diag");
+}
+
 inline bool IsDebug()
 {
-	int argc = 0;
-	LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-	if (!argv) return false;
+	return IsParamDefined(L"-debugprint");
+}
 
-	bool found = false;
-	for (int i = 1; i < argc; ++i) {
-		if (_wcsicmp(argv[i], L"-PluginsDebug") == 0) {
-			found = true;
-			break;
-		}
-	}
-	LocalFree(argv);
-	return found;
+inline bool IsConsoleDisabled()
+{
+	return IsParamDefined(L"-noconsole");
 }
 
 inline int PrintlnColored(const char* fmt, WORD colorAttr, ...)
