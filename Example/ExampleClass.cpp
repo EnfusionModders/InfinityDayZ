@@ -57,6 +57,8 @@ void ExampleClass::BigMethod(ManagedScriptInstance* selfPtr, ManagedScriptInstan
 {
     Debugln("ExampleClass::BigMethod called!");
 
+    ManagedScriptInstance* player = nullptr;
+
     using RawFn = int(__fastcall*)(ManagedScriptInstance*, FunctionContext*, PNativeArgument*);
     int fnCount = playerIdentity->pType->functionCount;
     typename_functions* tfns = playerIdentity->pType->pFunctions;
@@ -73,7 +75,7 @@ void ExampleClass::BigMethod(ManagedScriptInstance* selfPtr, ManagedScriptInstan
             (unsigned long long)fn->fnPtr,
             (unsigned long long)fn->pContext);
 
-        if (std::string(fn->name).find("GetPlainName") != std::string::npos)
+        if (std::string(fn->name) == "GetPlayer")
         {
             RawFn callFn = reinterpret_cast<RawFn>(fn->fnPtr);
 
@@ -81,7 +83,7 @@ void ExampleClass::BigMethod(ManagedScriptInstance* selfPtr, ManagedScriptInstan
                 /* value */        fn->name, //THIS CANNOT BE NULL/EMPTY
                 /* variableName */ "#return.",
                 /* pContext */     playerIdentity->pType->pScriptModule->pContext,
-                /* typeTag */      ARG_TYPE_STRING,
+                /* typeTag */      ARG_TYPE_ENTITY,
                 /* flags */        ARG_FLAG_NONE
             );
             FunctionResult* retCtx = CreateFunctionResult(retArg);
@@ -90,12 +92,31 @@ void ExampleClass::BigMethod(ManagedScriptInstance* selfPtr, ManagedScriptInstan
 
             callFn(playerIdentity, nullptr, &retCtx->Result);
 
-            char* name = static_cast<char*>(retArg->Value);
-            Debugln("GetPlainName() returned: %s  @ 0x%llX", name, (unsigned long long)retArg);
+            player = static_cast<ManagedScriptInstance*>(retArg->Value);
+            Debugln("GetPlayer() returned: @ 0x%llX  @ 0x%llX", (unsigned long long)player, (unsigned long long)retArg);
 
             //Cleanup
             DestroyFunctionResult(retCtx);
             break;
+        }
+    }
+
+    if (player)
+    {
+        int fnCount = player->pType->functionCount;
+        typename_functions* pFns = player->pType->pFunctions;
+        for (int i = 0; i < fnCount; i++)
+        {
+            typename_function* fn = pFns->List[i];
+            if (!fn || !fn->name || !fn->pContext)
+                break;
+
+            Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
+                i,
+                (unsigned long long)fn,
+                fn->name,
+                (unsigned long long)fn->fnPtr,
+                (unsigned long long)fn->pContext);
         }
     }
 

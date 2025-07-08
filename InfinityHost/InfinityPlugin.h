@@ -69,7 +69,7 @@ namespace Infinity {
 
 	//Helper functions to create function calling & return context
 	_CLINKAGE Infinity::Enfusion::Enscript::FunctionContext* CreateFunctionContext();
-	_CLINKAGE Infinity::Enfusion::Enscript::PNativeArgument CreateNativeArgument(void* value, const char* variableName, void* pContext, uint32_t typeTag = 0x00050000, uint32_t flags = 0x00000000);
+	_CLINKAGE Infinity::Enfusion::Enscript::PNativeArgument CreateNativeArgument(void* value, const char* variableName, void* pContext, uint32_t typeTag, uint32_t flags);
 	_CLINKAGE void DestroyNativeArgument(Infinity::Enfusion::Enscript::PNativeArgument arg);
 	_CLINKAGE void DestroyFunctionContext(Infinity::Enfusion::Enscript::FunctionContext* ctx);
 	_CLINKAGE Infinity::Enfusion::Enscript::PFunctionResult CreateFunctionResult(Infinity::Enfusion::Enscript::PNativeArgument resultArg);

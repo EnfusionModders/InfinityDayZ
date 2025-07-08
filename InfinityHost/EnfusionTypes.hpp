@@ -11,13 +11,16 @@ namespace Infinity {
 		namespace Enscript {
 
 			//——— Enforce engine type tags ---
+			static constexpr uint32_t ARG_TYPE_BOOL = 0x00000000; // ????
 			static constexpr uint32_t ARG_TYPE_INT = 0x00020000; // signed int
+			static constexpr uint32_t ARG_TYPE_FLOAT = 0x00030000; // float
 			static constexpr uint32_t ARG_TYPE_STRING = 0x00050000; // string
+			static constexpr uint32_t ARG_TYPE_VECTOR = 0x00000000; // ????
+			static constexpr uint32_t ARG_TYPE_ENTITY = 0x00060000; // EntityRef
 
 			//——— flags  ———
 			static constexpr uint32_t ARG_FLAG_NONE = 0x00000000;
 			static constexpr uint32_t ARG_FLAG_SKIP = 0x00000040; // skip / readonly / reserved
-
 
 			//--- custom function context data structure
 			typedef struct NativeArgument

@@ -39,7 +39,10 @@ void start(GInfinity* g_pInfinity)
 		}
 	}
 
-	Println("Initializing infinity.");
+	bool diag = IsDiagBuild();
+	WORD attr = diag ? COL_DIAG : COL_RETAIL;
+	PrintlnColored("Initializing infinity...Mode %s", attr, diag ? "DayZ DIAG" : "DayZ RETAIL");
+
 
 	g_pInfinity->Init(); // finds patterns
 

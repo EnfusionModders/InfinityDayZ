@@ -8,17 +8,11 @@
 #include "ScriptEngine.h"
 #include "detours.h"
 
-//Pattern
-const std::string PATTERN_REG_ENGINE_CLASS_FUNCTION = "48 83 EC 38 45 0F B6 C8"; //BOTH
-
-const std::string PATTERN_REG_STATIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24"; //REATIL
-//const std::string PATTERN_REG_STATIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC ? 0F B6 44 24 ? 48 8B F1"; //DIAG
-
-const std::string PATTERN_REG_DYNAMIC_PROTO_FUNCTION = "E9 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B DA"; //RETAIL
-//const std::string PATTERN_REG_DYNAMIC_PROTO_FUNCTION = "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24"; //DIAG
-
-const std::string PATTERN_REG_GLOBAL_PROTO_FUNCTION = "48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 41 8B F1 48 8B E9"; //BOTH
-
+//Patterns
+std::string PATTERN_REG_ENGINE_CLASS_FUNCTION;
+std::string PATTERN_REG_STATIC_PROTO_FUNCTION;
+std::string PATTERN_REG_DYNAMIC_PROTO_FUNCTION;
+std::string PATTERN_REG_GLOBAL_PROTO_FUNCTION;
 
 BaseScriptManager* g_BaseScriptManager = NULL;
 FnEngineRegisterClass f_EngineRegisterClass = NULL;
@@ -130,28 +124,28 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 		);
 
 	
-	//	RETAIL EXE
-
 	static FnRegisterClassFunctions FnRegFns = nullptr;
-	auto pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION,GetModuleHandle(NULL), 1);
-	if (pImm)
+	void* pImm = nullptr;
+
+	if (IsDiagBuild())
 	{
-		uint32_t rel = *reinterpret_cast<uint32_t*>(pImm);
-		uint64_t fnAddr = (uint64_t)pImm + 4 + rel;
-		FnRegFns = reinterpret_cast<FnRegisterClassFunctions>(fnAddr);
+		pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
+		if (pImm)
+		{
+			FnRegFns = reinterpret_cast<FnRegisterClassFunctions>(pImm);
+		}
+	}
+	else
+	{
+		pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION, GetModuleHandle(NULL), 1);
+		if (pImm)
+		{
+			uint32_t rel = *reinterpret_cast<uint32_t*>(pImm);
+			uint64_t fnAddr = (uint64_t)pImm + 4 + rel;
+			FnRegFns = reinterpret_cast<FnRegisterClassFunctions>(fnAddr);
+		}
 	}
 	
-
-	// DIAG EXE
-	/*
-	static FnRegisterClassFunctions FnRegFns = nullptr;
-	auto pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
-	if (pImm)
-	{
-		FnRegFns = reinterpret_cast<FnRegisterClassFunctions>(pImm);
-	}
-	*/
-
 	if (!FnRegFns)
 	{
 		Errorln("!ERROR! Unable to locate subroutine call for dynamic function registration!");
@@ -179,7 +173,21 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 bool InitScriptEngine()
 {
 	Debugln("Init script engine.");
-	
+
+	//Define Patterns
+	PATTERN_REG_ENGINE_CLASS_FUNCTION = "48 83 EC 38 45 0F B6 C8"; //BOTH
+	PATTERN_REG_GLOBAL_PROTO_FUNCTION = "48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 41 8B F1 48 8B E9"; //BOTH
+
+	PATTERN_REG_STATIC_PROTO_FUNCTION =
+		IsDiagBuild()
+		? "48 89 74 24 ? 57 48 83 EC ? 0F B6 44 24 ? 48 8B F1" //DIAG
+		: "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24"; //RETAIL
+
+	PATTERN_REG_DYNAMIC_PROTO_FUNCTION =
+		IsDiagBuild()
+		? "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24" //DIAG
+		: "E9 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B DA"; //RETAIL
+
 	g_BaseScriptManager = new BaseScriptManager();
 
 	//Hook detour onto the engine function that handles setup of script declared typenames
