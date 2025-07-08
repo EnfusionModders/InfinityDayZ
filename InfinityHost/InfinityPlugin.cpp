@@ -20,49 +20,60 @@ const std::string PATTEN_CALL_CLEANUP_METHOD = "48 83 EC ? ? ? ? 4D 85 C9 74 ? 4
 
 void Infinity::LoadPlugins()
 {
-    // load the single Example.dll next to our EXE
-    Println("Loading plugins....");
+    Println("Loading plugins...");
 
-    // get full path to our running EXE
     char buffer[MAX_PATH];
-    GetModuleFileNameA(NULL, buffer, MAX_PATH);
-    std::string::size_type pos = std::string(buffer).find_last_of("\\/");
-    std::string exeDir = std::string(buffer).substr(0, pos);
+    if (!GetModuleFileNameA(NULL, buffer, MAX_PATH)) {
+        Warnln("GetModuleFileNameA failed (%u)", GetLastError());
+        return;
+    }
+    std::string exePath(buffer);
+    auto pos = exePath.find_last_of("\\/");
+    if (pos == std::string::npos) {
+        Warnln("Cannot determine executable directory from '%s'", exePath.c_str());
+        return;
+    }
+    std::string exeDir = exePath.substr(0, pos);
 
-    // build the path to Example.dll
-    std::string dllPath = exeDir + "\\Example.dll";
-
-    // ensure it exists
-    if (!fs::exists(dllPath))
-    {
-        Warnln("Example.dll not found. Expected at '%s'.", dllPath.c_str());
+    fs::path pluginsDir = fs::path(exeDir) / "Plugins";
+    if (!fs::exists(pluginsDir) || !fs::is_directory(pluginsDir)) {
+        Warnln("Plugins directory not found: '%s'", pluginsDir.string().c_str());
         return;
     }
 
-    Debugln("Attempting to load '%s'.", dllPath.c_str());
+    for (auto& entry : fs::directory_iterator(pluginsDir)) {
+        if (!entry.is_regular_file())
+            continue;
 
-    // load it
-    HMODULE hLib = LoadLibraryA(dllPath.c_str());
-    if (!hLib)
-    {
-        DWORD err = GetLastError();
-        Warnln("LoadLibraryA failed (0x%X) when loading '%s'.", err, dllPath.c_str());
-        return;
-    }
+        auto path = entry.path();
+        if (_stricmp(path.extension().string().c_str(), ".dll") != 0)
+            continue;
 
-    Debugln("Successfully loaded '%s'.", dllPath.c_str());
+        // skip our host DLL itself
+        if (_stricmp(path.filename().string().c_str(), "InfinityHost.dll") == 0)
+            continue;
 
-    // call its OnPluginLoad export
-    ONPLUGINLOAD OnPluginLoad =
-        (ONPLUGINLOAD)GetProcAddress(hLib, "?OnPluginLoad@@YAXXZ");
-    if (OnPluginLoad)
-    {
-        OnPluginLoad();
-        Debugln("OnPluginLoad was called in Example.dll.");
-    }
-    else
-    {
-        Warnln("Unable to find OnPluginLoad export in Example.dll.");
+        auto dllPath = path.string();
+        Debugln("Attempting to load plugin '%s'", dllPath.c_str());
+
+        HMODULE hLib = LoadLibraryA(dllPath.c_str());
+        if (!hLib) {
+            DWORD err = GetLastError();
+            Warnln("LoadLibraryA failed (0x%X) on '%s'", err, dllPath.c_str());
+            continue;
+        }
+
+        PrintlnColored("Successfully loaded '%s'", COL_RETAIL, dllPath.c_str());
+
+        //call its OnPluginLoad export
+        auto OnPluginLoad = reinterpret_cast<void(*)()>(GetProcAddress(hLib, "?OnPluginLoad@@YAXXZ"));
+        if (OnPluginLoad) {
+            OnPluginLoad();
+            Debugln("OnPluginLoad() called in '%s'", dllPath.c_str());
+        }
+        else {
+            Warnln("No OnPluginLoad export in '%s'", dllPath.c_str());
+        }
     }
 }
 
@@ -241,20 +252,38 @@ void Infinity::Logging::Debugln(const char* format, ...)
 }
 void Infinity::Logging::Warnln(const char* format, ...)
 {
-	printf("PLUGIN    (W): ");
-	va_list vl;
-	va_start(vl, format);
-	vprintf(format, vl);
-	va_end(vl);
-	printf("\n");
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hOut, &csbi);
+    WORD oldAttrs = csbi.wAttributes;
+
+    SetConsoleTextAttribute(hOut, COL_WARN);
+
+    fputs("PLUGIN    (W): ", stdout);
+    va_list vl;
+    va_start(vl, format);
+    vprintf(format, vl);
+    va_end(vl);
+    fputc('\n', stdout);
+
+    SetConsoleTextAttribute(hOut, oldAttrs);
 }
 void Infinity::Logging::Errorln(const char* format, ...)
 {
-	printf("PLUGIN    (E): ");
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hOut, &csbi);
+    WORD oldAttrs = csbi.wAttributes;
+
+    SetConsoleTextAttribute(hOut, COL_ERROR);
+
+    fputs("PLUGIN    (E): ", stdout);
 	va_list vl;
 	va_start(vl, format);
 	vprintf(format, vl);
 	va_end(vl);
-	printf("\n");
+    fputc('\n', stdout);
+
+    SetConsoleTextAttribute(hOut, oldAttrs);
 }
 #pragma endregion

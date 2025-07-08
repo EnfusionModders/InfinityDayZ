@@ -10,10 +10,7 @@
 #include "Patterns.h"
 
 
-BaseScriptManager::BaseScriptManager()
-{
-	Debugln("BaseScriptManager ctor!");
-}
+BaseScriptManager::BaseScriptManager(){}
 BaseScriptManager::~BaseScriptManager() {}
 
 int BaseScriptManager::GetTotalClassCount()

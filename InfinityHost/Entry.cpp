@@ -1,4 +1,4 @@
-#include <chrono>
+﻿#include <chrono>
 #include <thread>
 #include <Windows.h>
 #include <io.h>
@@ -41,7 +41,7 @@ void start(GInfinity* g_pInfinity)
 
 	bool diag = IsDiagBuild();
 	WORD attr = diag ? COL_DIAG : COL_RETAIL;
-	PrintlnColored("Initializing infinity...Mode %s", attr, diag ? "DayZ DIAG" : "DayZ RETAIL");
+	PrintlnColored("INITIALIZING INFINITY :: Mode -> [%s]", attr, diag ? "DayZ DIAG" : "DayZ RETAIL");
 
 
 	g_pInfinity->Init(); // finds patterns
