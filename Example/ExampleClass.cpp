@@ -3,7 +3,10 @@
 
 #include "ExampleClass.h"
 
-ExampleClass::ExampleClass() : BaseScriptClass("ExampleClass") {}
+ExampleClass::ExampleClass() : BaseScriptClass("ExampleClass") {
+
+    Infinity::PrintToConsole((const char*)"[Plugin] ExampleClass instance created! %s", (char*)"some charrrrrr");
+}
 
 //static proto function that live within ExampleClass on Enforce side of things
 void ExampleClass::RegisterStaticClassFunctions(Infinity::RegistrationFunction registerMethod){
@@ -122,6 +125,9 @@ void ExampleClass::BigMethod(ManagedScriptInstance* selfPtr, ManagedScriptInstan
 
 }
 
+/*
+* static proto native string TestStaticNativeMethod(string someData);
+*/
 char* ExampleClass::TestStaticNativeMethod(char* data)
 {
     Debugln("TestStaticNativeMethod was called! %s", data);
@@ -132,7 +138,7 @@ char* ExampleClass::TestStaticNativeMethod(char* data)
 * proto void TestMethod();
 * 
 * Dynamic proto methods will always include selfPtr as the first arg
-* eg; if CGame has a proto native/non-native TestMethod(arg), it's first arg will be a ptr to CGame instance followed by regular args.
+* eg; if ExampleClass has a proto native/non-native TestMethod(arg), it's first arg will be a ptr to ExampleClass instance followed by regular args.
 * if the method is "non-native" -> first arg points to self instance, 2nd arg is FunctionContext, 3rd arg is FunctionResult
 */
 void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* args)
@@ -272,7 +278,9 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
     */
 }
 
-//void ExampleClass::TestFunction(ManagedScriptInstance* inst, __int64 strPtr)
+/*
+* static proto string TestFunction(string someStr);
+*/
 void ExampleClass::TestFunction(Infinity::Enfusion::Enscript::FunctionContext* args, Infinity::Enfusion::Enscript::FunctionResult* result)
 {
     const char* input = (const char*)args->GetArgument(0)->Value; // arg0 is a string

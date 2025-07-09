@@ -21,6 +21,7 @@ namespace Infinity {
 	typedef std::function<bool(const char*, void*)> RegistrationFunction;
 
 	//dynamic instance enforce method call
+	typedef __int64(__fastcall* FnLogToConsole)(int a1, const char* a2, ...);
 	typedef __int64(__fastcall* FnLookupMethod)(__int64 classPtr, const char* methodName);
 	typedef __int64(__fastcall* FnCallUpMethod)(__int64 instancePtr, Infinity::Enfusion::Enscript::FunctionResult* a2, int idx, ...);
 	typedef void(__fastcall* FnCleanupMethodCall)(Infinity::Enfusion::Enscript::FunctionResult* a1);
@@ -61,6 +62,13 @@ namespace Infinity {
 	}
 	namespace Enfusion {
 		//_CLINKAGE bool RegisterKeyPath(const char* directory, const char* key, bool allow_write = true); // register path to $key: for file access
+	}
+
+	_CLINKAGE extern FnLogToConsole f_LogToConsole;
+
+	template<typename... Args>
+	void PrintToConsole(const char* message, Args&&... args) {
+		f_LogToConsole(1, message, std::forward<Args>(args)...);
 	}
 
 	_CLINKAGE extern FnLookupMethod f_LookUpMethod;

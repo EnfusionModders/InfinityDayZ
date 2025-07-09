@@ -13,6 +13,9 @@
 
 namespace fs = std::filesystem;
 
+//Printing to DayZ console
+const std::string PATTERN_PRINT_TO_CONSOLE = "48 8B C4 48 89 50 ? 4C 89 40 ? 4C 89 48 ? 53 57 48 81 EC ? ? ? ? C6 44 24";
+
 //Patterns for calling dynamic class methods
 const std::string PATTERN_LOOKUP_METHOD = "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B FA 48 8B D9 48 85 C9 74 ? 48 89 54 24";
 const std::string PATTERN_CALLUP_METHOD = "44 89 44 24 ? 4C 89 4C 24 ? 53";
@@ -82,6 +85,9 @@ void Infinity::RegisterScriptClass(std::unique_ptr<Infinity::BaseScriptClass> pS
     //add script instance to class manager and begin init
     g_BaseScriptManager->Register(std::move(pScriptClass));
 }
+
+//DayZ's console logging
+Infinity::FnLogToConsole Infinity::f_LogToConsole = reinterpret_cast<Infinity::FnLogToConsole>(Infinity::Utils::FindPattern(PATTERN_PRINT_TO_CONSOLE, GetModuleHandle(NULL), 0));
 
 //Call-up dynamic method from instance of enforce class
 Infinity::FnLookupMethod Infinity::f_LookUpMethod = reinterpret_cast<Infinity::FnLookupMethod>(Infinity::Utils::FindPattern(PATTERN_LOOKUP_METHOD, GetModuleHandle(NULL), 0));

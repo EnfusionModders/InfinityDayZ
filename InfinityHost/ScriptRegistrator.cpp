@@ -50,7 +50,7 @@ Infinity::BaseScriptClass* BaseScriptManager::GetClassByName(char* name)
 	for (auto& uptr : g_BaseClasses)
 	{
 		Infinity::BaseScriptClass* ptr = uptr.get();
-		if (std::string(name).find(ptr->GetName()) != std::string::npos)
+		if (std::string(name) == ptr->GetName())
 		{
 			return ptr;
 		}
