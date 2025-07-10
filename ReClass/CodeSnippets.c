@@ -81,3 +81,8 @@ if (index > -1)
 
     // 2) Wrap it in a FunctionResult:
     Infinity::Enfusion::Enscript::PFunctionResult fnResult = CreateFunctionResult(arg);
+
+
+    // while (!GetAsyncKeyState(VK_F12)) {
+ //       Sleep(1);
+   // }

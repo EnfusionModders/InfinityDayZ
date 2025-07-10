@@ -9,7 +9,6 @@
 namespace Infinity {
 	namespace Enfusion {
 		namespace Enscript {
-
 			//——— Enforce engine type tags ---
 			static constexpr uint32_t ARG_TYPE_BOOL = 0x00000000; // ????
 			static constexpr uint32_t ARG_TYPE_INT = 0x00020000; // signed int
@@ -225,8 +224,37 @@ namespace Infinity {
 				public:
 					class WeakPtrTracker* pPtrTracker; //0x0020
 				private:
-					char pad_0028[24]; //0x0028
+					char pad_0028[8]; //0x0028
+				public:
+					typename_function* FindFunctionPointer(std::string fnName)
+					{
+						if (!pType)
+							return nullptr;
+
+						typename_functions* tfns = pType->pFunctions;
+						if (!tfns)
+							return nullptr;
+
+						for (int i = 0; i < pType->functionCount; ++i)
+						{
+							typename_function* fn = tfns->List[i];
+							if (!fn || !fn->name || !fn->pContext)
+								break;
+
+							if (std::string(fn->name) == fnName)
+								return fn;
+						}
+						return nullptr;
+					}
 				}; //Size: 0x0040
+
+				class PlayerIdentity: public ManagedScriptInstance
+				{
+				public:
+					int32_t dpnid; //0x0030
+				private:
+					char pad_0034[0x40 - 0x34];
+				};
 
 				class FileSystemDef
 				{
@@ -370,7 +398,7 @@ namespace Infinity {
 #pragma pack(push,1)
 				struct EnArray {
 					char           _pad0[0x08];		// 0x00
-					void* pType;					// 0x08
+					class type*    pType;			// 0x08
 					char           _pad1[0x10];		// 0x10
 					void*		   pWeakPtr;		// 0x20
 					void*		   pBuffer;			// 0x28

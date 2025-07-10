@@ -200,7 +200,7 @@ Infinity::BaseScriptClass::BaseScriptClass(const char* name)
 {
 	this->className = name;
     this->hasRegistered = false;
-    this->pEnfClass = nullptr;
+    this->pEnfType = nullptr;
 }
 const char* Infinity::BaseScriptClass::GetName() 
 {
@@ -214,13 +214,13 @@ void Infinity::BaseScriptClass::SetRegistered()
 {
     this->hasRegistered = true;
 }
-Infinity::Enfusion::Enscript::Framework::ManagedClass* Infinity::BaseScriptClass::GetEnfClassPtr()
+Infinity::Enfusion::Enscript::Framework::ManagedClass* Infinity::BaseScriptClass::GetEnfTypePtr()
 {
-    return this->pEnfClass;
+    return this->pEnfType;
 }
-void Infinity::BaseScriptClass::SetEnfClassPtr(__int64 ptr)
+void Infinity::BaseScriptClass::SetEnfTypePtr(__int64 ptr)
 {
-    this->pEnfClass = reinterpret_cast<Infinity::Enfusion::Enscript::Framework::ManagedClass*>(ptr);
+    this->pEnfType = reinterpret_cast<Infinity::Enfusion::Enscript::Framework::ManagedClass*>(ptr);
 }
 void Infinity::BaseScriptClass::RegisterStaticClassFunctions(RegistrationFunction registerMethod)
 {

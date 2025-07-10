@@ -3,12 +3,11 @@ proto string GlobalNonNativeFn(string someData);
 
 class ExampleClass
 {
-	static proto string TestFunction(string someStr);
-
-	static proto native string TestStaticNativeMethod(string someData);
+	static proto string TestStaticFunction(string someStr, array<string> someArr);
+	static proto native string TestStaticNativeFunction(string someData);
 	
-	proto void TestMethod();
-	proto native void BigMethod(PlayerIdentity pid);
+	proto void DynamicProtoMethod();
+	proto native void DynamicProtoNativeMethod(PlayerIdentity pid);
 
 	string JtMethod(string myMsg)
 	{

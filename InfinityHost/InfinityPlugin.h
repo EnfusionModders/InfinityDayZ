@@ -3,6 +3,8 @@
 #include <functional>
 #include <vector>
 #include <Windows.h>
+#include <memory>
+#include <string>
 #include "EnfusionTypes.hpp"
 
 #ifdef INFINITYHOST_EXPORTS
@@ -32,8 +34,8 @@ namespace Infinity {
 		const char* GetName();
 		bool HasRegistered();
 		void SetRegistered();
-		void SetEnfClassPtr(__int64 ptr);
-		Infinity::Enfusion::Enscript::Framework::ManagedClass* GetEnfClassPtr();
+		void SetEnfTypePtr(__int64 ptr);
+		Infinity::Enfusion::Enscript::Framework::ManagedClass* GetEnfTypePtr();
 		// override this function to register your script routines to this class.
 		virtual void RegisterStaticClassFunctions(RegistrationFunction registerMethod);
 		// override this function to register your script routines to this class.
@@ -43,7 +45,7 @@ namespace Infinity {
 	protected:
 		const char* className;
 		bool hasRegistered;
-		Infinity::Enfusion::Enscript::Framework::ManagedClass* pEnfClass;
+		Infinity::Enfusion::Enscript::Framework::ManagedClass* pEnfType;
 	};
 
 	// Call this routine during OnPluginLoad to register custom script classes
@@ -66,6 +68,7 @@ namespace Infinity {
 
 	_CLINKAGE extern FnLogToConsole f_LogToConsole;
 
+	//Prints to DayZ Server console
 	template<typename... Args>
 	void PrintToConsole(const char* message, Args&&... args) {
 		f_LogToConsole(1, message, std::forward<Args>(args)...);
@@ -93,18 +96,18 @@ namespace Infinity {
 
 		if (!pInstance) {
 			Infinity::Logging::Errorln("CallEnforceMethod: call failed, pInstance cannot be null!");
-			return false;
+			return nullptr;
 		}
 
 		if (methodName.empty()) {
 			Infinity::Logging::Errorln("CallEnforceMethod: call failed, method name cannot be empty!");
-			return false;
+			return nullptr;
 		}
 
 		int idx = f_LookUpMethod(reinterpret_cast<__int64>(pInstance->pType), methodName.c_str());
 		if (idx == -1){
 			Infinity::Logging::Errorln("CallEnforceMethod: call failed, method could not be found! Check name");
-			return false;
+			return nullptr;
 		}
 
 		Infinity::Enfusion::Enscript::FunctionResult ret;

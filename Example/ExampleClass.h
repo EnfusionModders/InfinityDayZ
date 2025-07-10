@@ -15,11 +15,12 @@ public:
 	void RegisterDynamicClassFunctions(RegistrationFunction registerMethod) override;
 	void RegisterGlobalFunctions(RegistrationFunction registerFunction) override;
 private:
-	//static void TestFunction(ManagedScriptInstance* inst, __int64 strPtr);
-	static void TestFunction(FunctionContext* args, FunctionResult* result);
 	static void GlobalFnTest(char* somedata);
-	static void TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* args);
-	static void BigMethod(ManagedScriptInstance*, ManagedScriptInstance*);
 	static void GlobalNonNativeFn(FunctionContext* args, FunctionResult* result);
-	static char* TestStaticNativeMethod(char*);
+
+	static void TestStaticFunction(FunctionContext* args, FunctionResult* result);
+	static char* TestStaticNativeFunction(char*);
+
+	static void DynamicProtoMethod(ManagedScriptInstance* selfPtr, FunctionContext* args);
+	static void DynamicProtoNativeMethod(ManagedScriptInstance*, PlayerIdentity*);
 };

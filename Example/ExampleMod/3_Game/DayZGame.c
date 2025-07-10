@@ -1,5 +1,7 @@
 modded class DayZGame
 {
+	ref array<string> m_someArray;
+
 	void DayZGame()
 	{
 		//Global
@@ -7,7 +9,13 @@ modded class DayZGame
 		Print(GlobalNonNativeFn("HEY C++!"));
 
 		//Static class defined engine functions
-		Print(ExampleClass.TestFunction("hello from Enforce!")); //proto
-		Print(ExampleClass.TestStaticNativeMethod("hey there from enforce!")); //proto native
+		m_someArray = new array<string>;
+		m_someArray.Insert("hi c++!");
+
+		Print(ExampleClass.TestStaticFunction("hello from Enforce!", m_someArray)); //proto
+
+		m_someArray.Debug(); //C++ would have populated our array with some more data
+
+		Print(ExampleClass.TestStaticNativeFunction("hey there from enforce!")); //proto native
 	}
 }

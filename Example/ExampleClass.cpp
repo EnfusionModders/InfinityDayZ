@@ -1,23 +1,29 @@
 ﻿#include <InfinityPlugin.h>
 #include <EnfusionTypes.hpp>
 
+#include "NetworkServer.h"
 #include "ExampleClass.h"
 
-ExampleClass::ExampleClass() : BaseScriptClass("ExampleClass") {
+ManagedClass* enfTypePtr = nullptr; //ptr to the Enfusion typename declartion of this class (not an actual class instace!)
 
+ExampleClass::ExampleClass() : BaseScriptClass("ExampleClass")
+{
+    PluginUtils::NetworkUtils::FindNetworkServer();
     Infinity::PrintToConsole((const char*)"[Plugin] ExampleClass instance created! %s", (char*)"some charrrrrr");
 }
 
 //static proto function that live within ExampleClass on Enforce side of things
 void ExampleClass::RegisterStaticClassFunctions(Infinity::RegistrationFunction registerMethod){
-	registerMethod("TestFunction", &ExampleClass::TestFunction);
-	registerMethod("TestStaticNativeMethod", &ExampleClass::TestStaticNativeMethod);
+	registerMethod("TestStaticFunction", &ExampleClass::TestStaticFunction);
+    registerMethod("TestStaticNativeFunction", &ExampleClass::TestStaticNativeFunction);
 };
 
 //dynamic proto native functions that live within ExampleClass on Enforce side of things
 void ExampleClass::RegisterDynamicClassFunctions(Infinity::RegistrationFunction registerMethod) {
-	registerMethod("TestMethod", &ExampleClass::TestMethod);
-	registerMethod("BigMethod", &ExampleClass::BigMethod);
+	registerMethod("DynamicProtoMethod", &ExampleClass::DynamicProtoMethod);
+	registerMethod("DynamicProtoNativeMethod", &ExampleClass::DynamicProtoNativeMethod);
+
+    enfTypePtr = GetEnfTypePtr();
 };
 
 //These are global, doesn't live within our Enforce typename declaration, but it points it's functionality here :)
@@ -32,133 +38,128 @@ void ExampleClass::RegisterGlobalFunctions(Infinity::RegistrationFunction regist
 */
 void ExampleClass::GlobalFnTest(char* someData)
 {
-	Debugln("GlobalFnTest was called! %s  @ 0x%llX", someData, (unsigned long long)someData);
+    Println("GlobalFnTest was called! %s  @ 0x%llX", someData, (unsigned long long)someData);
 }
 
 /*
 * proto void GlobalNonNativeFn(string someData);
 */
-void ExampleClass::GlobalNonNativeFn(Infinity::Enfusion::Enscript::FunctionContext* args, Infinity::Enfusion::Enscript::FunctionResult* result)
+void ExampleClass::GlobalNonNativeFn(FunctionContext* args, FunctionResult* result)
 {
     char* data = (char*)args->GetArgument(0)->Value;
     result->Result->Value = (char*)"LOL!";
     
-    Debugln("GlobalNonNativeFn called! %s result ctx: 0x%llX  full @ 0x%llX", data, (unsigned long long)result->Result, (unsigned long long)result);
-
-   // while (!GetAsyncKeyState(VK_F12)) {
- //       Sleep(1);
-   // }
+    Println("GlobalNonNativeFn called! %s result ctx: 0x%llX  full @ 0x%llX", data, (unsigned long long)result->Result, (unsigned long long)result);
 }
 
 /*
-* proto native void BigMethod(string someData);
-* 
-* Dynamic proto methods will always include selfPtr as the first arg
-* eg; if ExampleClass has a proto native/non-native FnTest(arg), it's first arg will be a ptr to ExampleClass instance followed by regular args.
+* static proto string TestStaticFunction(string someStr);
 */
-void ExampleClass::BigMethod(ManagedScriptInstance* selfPtr, ManagedScriptInstance* playerIdentity)
+void ExampleClass::TestStaticFunction(FunctionContext* args, FunctionResult* result)
 {
-    Debugln("ExampleClass::BigMethod called!");
+    const char* input = (const char*)args->GetArgument(0)->Value; // arg0 is a string
 
-    ManagedScriptInstance* player = nullptr;
+    Println("TestStaticFunction: %s", input);
+    result->Result->Value = reinterpret_cast<void*>((char*)"Some callback string"); //write our return value
 
-    using RawFn = int(__fastcall*)(ManagedScriptInstance*, FunctionContext*, PNativeArgument*);
-    int fnCount = playerIdentity->pType->functionCount;
-    typename_functions* tfns = playerIdentity->pType->pFunctions;
-    for (int i = 0; i < fnCount; ++i)
+    //Get our array ptr and write to it
+    EnArray* ptr = reinterpret_cast<EnArray*>(args->GetArgument(1)->Value);
+    if (ptr)
     {
-        typename_function* fn = tfns->List[i];
-        if (!fn || !fn->name || !fn->pContext)
-            break;
+        Println("Array type: %s", ptr->pType->name);
+        char* someStr = ptr->Get<char*>(0);
+        Println("Array has: %s @ index: 0", someStr);
 
-        Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
-            i,
-            (unsigned long long)fn,
-            fn->name,
-            (unsigned long long)fn->fnPtr,
-            (unsigned long long)fn->pContext);
-
-        if (std::string(fn->name) == "GetPlayer")
-        {
-            RawFn callFn = reinterpret_cast<RawFn>(fn->fnPtr);
-
-            PNativeArgument retArg = CreateNativeArgument(
-                /* value */        fn->name, //THIS CANNOT BE NULL/EMPTY
-                /* variableName */ "#return.",
-                /* pContext */     playerIdentity->pType->pScriptModule->pContext,
-                /* typeTag */      ARG_TYPE_ENTITY,
-                /* flags */        ARG_FLAG_NONE
-            );
-            FunctionResult* retCtx = CreateFunctionResult(retArg);
-
-            Debugln("retArg @ 0x%llX full ctx @ 0x%llX", (unsigned long long)retCtx->Result, (unsigned long long)retCtx);
-
-            callFn(playerIdentity, nullptr, &retCtx->Result);
-
-            player = static_cast<ManagedScriptInstance*>(retArg->Value);
-            Debugln("GetPlayer() returned: @ 0x%llX  @ 0x%llX", (unsigned long long)player, (unsigned long long)retArg);
-
-            //Cleanup
-            DestroyFunctionResult(retCtx);
-            break;
-        }
+        ptr->Insert((char*)"another string for you!");
     }
 
-    if (player)
-    {
-        int fnCount = player->pType->functionCount;
-        typename_functions* pFns = player->pType->pFunctions;
-        for (int i = 0; i < fnCount; i++)
-        {
-            typename_function* fn = pFns->List[i];
-            if (!fn || !fn->name || !fn->pContext)
-                break;
+   
+    Println("enfPtr fncount - > %d", enfTypePtr->functionsCount);
 
-            Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
-                i,
-                (unsigned long long)fn,
-                fn->name,
-                (unsigned long long)fn->fnPtr,
-                (unsigned long long)fn->pContext);
-        }
+    /*
+    if (!map)
+    {
+        Warnln("TestFunction called with null map!");
+        return;
     }
 
+    char* key = map->GetKey<char*>(0);
+    int* data = map->Get<char*, int*>(key);
+
+    Debugln("map element at key %s : %d", key, data);
+
+    Debugln("map size : %d", map->Size);
+    Debugln("map capacity : %d", map->Capacity);
+
+
+    Debugln("map size after: %d", map->Size);
+    Debugln("map capacity after: %d", map->Capacity);
+    */
 }
 
 /*
-* static proto native string TestStaticNativeMethod(string someData);
+* static proto native string TestStaticNativeFunction(string someData);
 */
-char* ExampleClass::TestStaticNativeMethod(char* data)
+char* ExampleClass::TestStaticNativeFunction(char* data)
 {
-    Debugln("TestStaticNativeMethod was called! %s", data);
+    Println("TestStaticNativeFunction was called! %s", data);
     return (char*)"Here's your return!";
 }
 
 /*
-* proto void TestMethod();
+* proto native void DynamicProtoNativeMethod(PlayerIdentity pid);
 * 
 * Dynamic proto methods will always include selfPtr as the first arg
-* eg; if ExampleClass has a proto native/non-native TestMethod(arg), it's first arg will be a ptr to ExampleClass instance followed by regular args.
+* eg; if ExampleClass has a proto native/non-native DynamicProtoNativeMethod(arg), it's first arg will be a ptr to ExampleClass instance followed by regular args.
+*/
+void ExampleClass::DynamicProtoNativeMethod(ManagedScriptInstance* selfPtr, PlayerIdentity* playerIdentity)
+{
+    Println("ExampleClass::DynamicProtoNativeMethod called!");
+
+    typename_function* fn = playerIdentity->FindFunctionPointer("GetPlayer");
+    if (fn)
+    {
+        using FnGetPlayer = int(__fastcall*)(ManagedScriptInstance*, FunctionContext*, PNativeArgument*); //ptr to PlayerIdentity, input args, return arg
+        FnGetPlayer GetPlayer = reinterpret_cast<FnGetPlayer>(fn->fnPtr);
+
+        Println("fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX", (unsigned long long)fn, fn->name, (unsigned long long)fn->fnPtr, (unsigned long long)fn->pContext);
+
+        PNativeArgument returnArg = CreateNativeArgument(
+            /* value */        fn->name, //THIS CANNOT BE NULL/EMPTY
+            /* variableName */ "#return.",
+            /* pContext */     playerIdentity->pType->pScriptModule->pContext,
+            /* typeTag */      ARG_TYPE_ENTITY,
+            /* flags */        ARG_FLAG_NONE
+        );
+        FunctionResult* returnCtx = CreateFunctionResult(returnArg); //create context that will hold our return value which will be written by Enforce
+
+        GetPlayer(playerIdentity, nullptr, &returnCtx->Result); //Call & pass the required arguments to the Enforce engine call
+
+        //Now we have the instance to player from PlayerIdentity::proto Man GetPlayer();
+        ManagedScriptInstance* player = static_cast<ManagedScriptInstance*>(returnArg->Value);
+        Println("GetPlayer() returned: @ 0x%llX", (unsigned long long)player);
+
+        //Must cleanup to free-up memory we allocated
+        DestroyFunctionResult(returnCtx);
+    }
+}
+
+
+/*
+* proto void DynamicProtoMethod();
+* 
+* Dynamic proto methods will always include selfPtr as the first arg
+* eg; if ExampleClass has a proto native/non-native DynamicProtoMethod(arg), it's first arg will be a ptr to ExampleClass instance followed by regular args.
 * if the method is "non-native" -> first arg points to self instance, 2nd arg is FunctionContext, 3rd arg is FunctionResult
 */
-void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* args)
+void ExampleClass::DynamicProtoMethod(ManagedScriptInstance* selfPtr, FunctionContext* args)
 {
-    Debugln("TestMethod args -> @  0x%llX", (unsigned long long)args);
-    Debugln("TestMethod selfPtr -> @  0x%llX", (unsigned long long)selfPtr);
-    Debugln("TestMethod pScriptModule -> @  0x%llX", (unsigned long long)selfPtr->pType->pScriptModule);
-    Debugln("TestMethod pScriptContext -> @  0x%llX", (unsigned long long)selfPtr->pType->pScriptModule->pContext);
-    
-    Debugln("TestMethod pScriptModule name -> %s", selfPtr->pType->pScriptModule->pName);
-
-    Infinity::CallEnforceMethod(selfPtr, "GetTestName");
+    Println("DynamicProtoMethod was called!");
 
     //Example, calling dynamic method within a class instance (for non proto/engine linked class declared methods!)
-    const char* retRes = (const char*)Infinity::CallEnforceMethod(selfPtr, "JtMethod", (char*)"Hello this is a message!");
-    Debugln("CallEnforceMethod returned: %s", retRes);
-    // pause here until you hit a key or debugger resumes
-    //while (!GetAsyncKeyState(VK_F12)) {
-    //    Sleep(1);
-   // }
+    char* retRes = (char*)Infinity::CallEnforceMethod(selfPtr, "JtMethod", (char*)"Hello this is a message!");
+    Println("CallEnforceMethod returned: %s", retRes);
+    
 
     //Example Calling a global "proto native" method at a given ScriptContext
     int fnCount = selfPtr->pType->pScriptModule->pContext->GlobalFunctionCount;
@@ -172,7 +173,7 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
         if (!fn || !fn->name || !fn->pContext)
             break;
 
-        Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
+        Println("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
             i,
             (unsigned long long)fn,
             fn->name,
@@ -188,9 +189,9 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
         }
     }
 
-    Debugln("");
-    Debugln("");
-    Debugln("");
+    Println("");
+    Println("");
+    Println("");
 
     //Example calling a class defined dynamic "proto native" method
     using RawFn_ = char* (__fastcall*)(ManagedScriptInstance*, char*);
@@ -202,7 +203,7 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
         if (!fn_ || !fn_->name || !fn_->pContext)
             break;
 
-        Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
+        Println("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
             i,
             (unsigned long long)fn_,
             fn_->name,
@@ -217,9 +218,9 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
         }
     }
 
-    Debugln("");
-    Debugln("");
-    Debugln("");
+    Println("");
+    Println("");
+    Println("");
 
     //Example calling a class defined static "proto native" method
     using RawFn___ = char* (__fastcall*)(char*);
@@ -231,7 +232,7 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
         if (!fn___ || !fn___->name || !fn___->pContext)
             break;
 
-        Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
+        Println("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
             i,
             (unsigned long long)fn___,
             fn___->name,
@@ -242,14 +243,14 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
         {
             RawFn___ callFn___ = reinterpret_cast<RawFn___>(fn___->fnPtr);
             char* strRET = callFn___((char*)"hey there from C++!");
-            Debugln("strRET: %s", strRET);
+            Println("strRET: %s", strRET);
             break;
         }
     }
 
-    Debugln("");
-    Debugln("");
-    Debugln("");
+    Println("");
+    Println("");
+    Println("");
     /*
     //Example calling a global scope non-native proto function
     using RawFn__ = char* (__fastcall*)();
@@ -276,91 +277,4 @@ void ExampleClass::TestMethod(ManagedScriptInstance* selfPtr, FunctionContext* a
         }
     }
     */
-}
-
-/*
-* static proto string TestFunction(string someStr);
-*/
-void ExampleClass::TestFunction(Infinity::Enfusion::Enscript::FunctionContext* args, Infinity::Enfusion::Enscript::FunctionResult* result)
-{
-    const char* input = (const char*)args->GetArgument(0)->Value; // arg0 is a string
-
-    Println("Testing Function: %s", input);
-    result->Result->Value = reinterpret_cast<void*>((char*)"Some callback string");
-    
-
-    /*
-	Debugln("TestFunction inst -> @  0x%llX  strPtr -> @ 0x%llx", (unsigned long long)inst, (unsigned long long)strPtr);
-
-    // Step 1: grab the type
-    type* t = inst->pType;
-    if (!t) {
-        Debugln("  pType == nullptr");
-        return;
-    }
-    Debugln("Type '%s' @ 0x%llX total functions: %d",
-        t->name ? t->name : "<null>",
-        (unsigned long long)t,
-        t->functionCount);
-
-    // Step 2: grab the function‐list container
-    typename_functions* tfns = t->pFunctions;
-    if (!tfns) {
-        Debugln("  pFunctions == nullptr");
-        return;
-    }
-
-    using RawFn = char*(__fastcall*)(ManagedScriptInstance* inst);
-
-    // Step 3: walk the fixed List with our function count
-    int found = 0;
-    for (int i = 0; i < t->functionCount; ++i)
-    {
-        auto* _fn = tfns->List[i];
-        if (!_fn)
-            break;
-
-       typename_function* fn = tfns->List[i];
-        if (!fn || !fn->name || !fn->pContext)
-            break;
-
-        Debugln("  [%d] fn @ 0x%llX: name='%s' fnPtr: @ 0x%llX ,pContext=0x%llX",
-            i,
-            (unsigned long long)fn,
-            fn->name ? fn->name : "<null>",
-            (unsigned long long)fn->fnPtr,
-            (unsigned long long)fn->pContext);
-
-        if (std::string(fn->name).find("ClassName") != std::string::npos)
-        {
-            RawFn callFn = reinterpret_cast<RawFn>(fn->fnPtr);
-            char* ret = callFn(inst);
-            Debugln(" fn call returned %s", ret);
-        }
-
-        ++found;
-    }
-
-    Debugln(" -> %d/%d functions populated\n", found, t->functionCount);
-    */
-
-	/*
-	if (!map)
-	{
-		Warnln("TestFunction called with null map!");
-		return;
-	}
-
-	char* key = map->GetKey<char*>(0);
-	int* data = map->Get<char*, int*>(key);
-
-	Debugln("map element at key %s : %d", key, data);
-
-	Debugln("map size : %d", map->Size);
-	Debugln("map capacity : %d", map->Capacity);
-
-
-	Debugln("map size after: %d", map->Size);
-	Debugln("map capacity after: %d", map->Capacity);
-	*/
 }

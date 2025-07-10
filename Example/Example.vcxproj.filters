@@ -31,5 +31,11 @@
     <ClInclude Include="ExampleClass.h">
       <Filter>ExampleClass</Filter>
     </ClInclude>
+    <ClInclude Include="detours.h">
+      <Filter>Plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkServer.h">
+      <Filter>ExampleClass</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
