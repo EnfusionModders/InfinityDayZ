@@ -19,3 +19,9 @@ modded class DayZGame
 		Print(ExampleClass.TestStaticNativeFunction("hey there from enforce!")); //proto native
 	}
 }
+
+string MyGlobalMethod(string someData)
+{
+	Print("C++ said: " + someData);
+	return "Hi there plugin!";
+}

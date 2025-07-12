@@ -73,8 +73,11 @@ void ExampleClass::TestStaticFunction(FunctionContext* args, FunctionResult* res
         ptr->Insert((char*)"another string for you!");
     }
 
-   
     Println("enfPtr fncount - > %d", enfTypePtr->functionsCount);
+
+    //Example calling a non-engine global enforce method
+    char* retRes = (char*) Infinity::CallGlobalEnforceMethod(enfTypePtr->pScriptModule, "MyGlobalMethod", (char*)"this is a test!");
+    Println("CallGlobalEnforceMethod 'MyGlobalMethod' returned: %s", retRes);
 
     /*
     if (!map)

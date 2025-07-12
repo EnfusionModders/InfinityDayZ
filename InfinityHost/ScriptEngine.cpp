@@ -22,6 +22,15 @@ EnforceScriptCtx g_pEnforceScriptContext = NULL; //ptr to Core module script ctx
 static bool detourComplete = false;
 static int totalRegisteredClasses = 0;
 
+
+using FnSubCELoop = __int64(__fastcall*)(__int64* a1, unsigned int a2, unsigned __int8 a3);
+static FnSubCELoop f_FnSubCELoop = nullptr;
+
+static __int64 __fastcall detour_FnSubCELoop(__int64* a1, unsigned int a2, unsigned __int8 a3)
+{
+	return NULL;
+}
+
 using FnSub140668C00 = __int64(__fastcall*)(
 	int*,
 	char*,
@@ -265,6 +274,24 @@ bool InitScriptEngine()
 	}
 	else {
 		Infinity::Logging::Debugln("Hooked sub_140668C00 at %p", addr2);
+	}
+
+	///--Test CELOOP
+	void* addr3 = Infinity::Utils::FindPattern("48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? ? ? ? 41 0F B6 F8 8B F2", GetModuleHandle(NULL), 0);
+	if (!addr3) {
+		Infinity::Logging::Errorln("Hook(sub_CELOOP): pattern not found");
+	}
+	f_FnSubCELoop = reinterpret_cast<FnSubCELoop>(addr3);
+
+	DetourTransactionBegin();
+	DetourUpdateThread(GetCurrentThread());
+	DetourAttach(reinterpret_cast<PVOID*>(&f_FnSubCELoop), detour_FnSubCELoop);
+	LONG status3 = DetourTransactionCommit();
+	if (status3 != NO_ERROR) {
+		Infinity::Logging::Errorln("DetourAttach(sub_CELOOP) failed: %d", status3);
+	}
+	else {
+		Infinity::Logging::Debugln("Hooked sub_CELOOP at %p", addr3);
 	}
 
 	return true;

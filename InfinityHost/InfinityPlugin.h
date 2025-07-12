@@ -22,7 +22,11 @@ namespace Infinity {
 	// script class registration
 	typedef std::function<bool(const char*, void*)> RegistrationFunction;
 
-	//dynamic instance enforce method call
+	//global enforce method call (non-engine/proto)
+	typedef int(__fastcall* FnLookupGlobalMethod)(Infinity::Enfusion::Enscript::Framework::ScriptModule* moduleCtx, const char* methodName);
+	typedef void*(__fastcall* FnCallGlobalMethod)(Infinity::Enfusion::Enscript::Framework::ScriptModule* moduleCtx, Infinity::Enfusion::Enscript::FunctionResult* a2, int idx, __int64* someRet, ...);
+
+	//dynamic class instance enforce method call (non-engine/proto)
 	typedef __int64(__fastcall* FnLogToConsole)(int a1, const char* a2, ...);
 	typedef __int64(__fastcall* FnLookupMethod)(__int64 classPtr, const char* methodName);
 	typedef __int64(__fastcall* FnCallUpMethod)(__int64 instancePtr, Infinity::Enfusion::Enscript::FunctionResult* a2, int idx, ...);
@@ -74,6 +78,9 @@ namespace Infinity {
 		f_LogToConsole(1, message, std::forward<Args>(args)...);
 	}
 
+	_CLINKAGE extern FnLookupGlobalMethod f_LookupGlobalMethod;
+	_CLINKAGE extern FnCallGlobalMethod f_CallGlobalMethod;
+
 	_CLINKAGE extern FnLookupMethod f_LookUpMethod;
 	_CLINKAGE extern FnCallUpMethod f_CallUpMethod;
 	_CLINKAGE extern FnCleanupMethodCall f_CleanupUpMethodCall;
@@ -115,6 +122,45 @@ namespace Infinity {
 			reinterpret_cast<__int64>(pInstance),
 			&ret,
 			idx,
+			std::forward<Args>(args)...
+		);
+
+		f_CleanupUpMethodCall(&ret);
+
+		return ret.Result->Value;
+	}
+
+	/*
+	* Use this function to lookup and call an Enforce global level method at a given enforce ScriptModule instance (i.e Game, World, Mission)
+	* Returns void* result data of the method call.
+	* NOTE: You cannot call a proto engine method using this! Strictly regular class methods/functions (non static!)
+	*/
+	template<typename... Args>
+	void* CallGlobalEnforceMethod(Enfusion::Enscript::Framework::ScriptModule* pModule, const std::string& methodName, Args&&... args) {
+
+		if (!pModule) {
+			Infinity::Logging::Errorln("CallGlobalEnforceMethod: call failed, pModule cannot be null!");
+			return nullptr;
+		}
+
+		if (methodName.empty()) {
+			Infinity::Logging::Errorln("CallGlobalEnforceMethod: call failed, method name cannot be empty!");
+			return nullptr;
+		}
+
+		int idx = f_LookupGlobalMethod(pModule, methodName.c_str());
+		if (idx == -1) {
+			Infinity::Logging::Errorln("CallGlobalEnforceMethod: call failed, method could not be found! Check name / module instance");
+			return nullptr;
+		}
+
+		__int64 someRet;
+		Infinity::Enfusion::Enscript::FunctionResult ret;
+		auto callUpRet = f_CallGlobalMethod(
+			pModule,
+			&ret,
+			idx,
+			&someRet,
 			std::forward<Args>(args)...
 		);
 
