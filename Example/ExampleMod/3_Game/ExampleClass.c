@@ -6,7 +6,7 @@ class ExampleClass
 	static proto string TestStaticFunction(string someStr, array<string> someArr);
 	static proto native string TestStaticNativeFunction(string someData);
 	
-	proto void DynamicProtoMethod();
+	proto void DynamicProtoMethod(PlayerIdentity pid);
 	proto native void DynamicProtoNativeMethod(PlayerIdentity pid);
 
 	string JtMethod(string myMsg)

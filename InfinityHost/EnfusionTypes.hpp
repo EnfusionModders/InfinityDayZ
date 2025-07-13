@@ -71,6 +71,22 @@ namespace Infinity {
 				struct typename_function;
 				struct typename_functions;
 
+#pragma pack(push,1)
+				struct typename_function
+				{
+					uint8_t _pad0[0x08];	// 0x00–0x07: skip whatever lives here
+					void* fnPtr;				// 0x08–0x0F: the real code pointer
+					uint8_t _pad1[0x40 - 0x10];  // = 0x30 bytes  0x10–0x3F: skip up to the context field at 0x40
+					ScriptContext* pContext; // 0x40–0x47: the script-context pointer
+					char* name;				// 0x48–0x4F: function name pointer
+				};
+
+				struct typename_functions
+				{
+					class typename_function* List[10]; //0x0000, 10 here because "class Class" in Enforce has 10 functions
+				};
+#pragma pack(pop)
+
 				class ScriptContext
 				{
 				private:
@@ -81,7 +97,7 @@ namespace Infinity {
 					char pad_0010[32]; //0x0010
 				public:
 					char* pName; //0x0030
-					typename_functions* pGlobalFunctions; //0x0038
+					typename_functions* pGlobalFunctions; //0x0038 (this holds ENGINE proto globals)
 				private:
 					char pad_0040[4]; //0x0040
 				public:
@@ -93,6 +109,23 @@ namespace Infinity {
 					int32_t GlobalVarCount; //0x0054
 				private:
 					char pad_0058[104]; //0x0058
+				public:
+					typename_function* FindGlobalFunctionPtr(std::string fnName)
+					{
+						if (!pGlobalFunctions)
+							return nullptr;
+
+						for (int i = 0; i < GlobalFunctionCount; ++i)
+						{
+							typename_function* fn = pGlobalFunctions->List[i];
+							if (!fn || !fn->name || !fn->pContext)
+								break;
+
+							if (std::string(fn->name) == fnName)
+								return fn;
+						}
+						return nullptr;
+					}
 				}; //Size: 0x00C0
 			
 				class ScriptModule
@@ -105,7 +138,7 @@ namespace Infinity {
 					char pad_0010[32]; //0x0010
 				public:
 					char* pName; //0x0030
-					typename_functions* pGlobalFunctions; //0x0038
+					typename_functions* pGlobalFunctions; //0x0038 (this holds non engine globals)
 				private:
 					char pad_0040[4]; //0x0040
 				public:
@@ -132,7 +165,7 @@ namespace Infinity {
 				private:
 					char pad_0020[40]; //0x0020
 				public:
-					typename_functions* pFunctions; //0x0048
+					typename_functions* pFunctions; //0x0048 (holds all types of functions, including proto engine ones)
 				private:
 					char pad_0050[4]; //0x0050
 				public:
@@ -159,22 +192,6 @@ namespace Infinity {
 					class typename_variable* List[32]; //0x0000
 				};
 
-#pragma pack(push,1)
-				struct typename_function
-				{
-					uint8_t _pad0[0x08];	// 0x00–0x07: skip whatever lives here
-					void* fnPtr;				// 0x08–0x0F: the real code pointer
-					uint8_t _pad1[0x40 - 0x10];  // = 0x30 bytes  0x10–0x3F: skip up to the context field at 0x40
-					ScriptContext* pContext; // 0x40–0x47: the script-context pointer
-					char* name;				// 0x48–0x4F: function name pointer
-				};
-
-				struct typename_functions
-				{
-					class typename_function* List[10]; //0x0000, 10 here because "class Class" in Enforce has 10 functions
-				};
-#pragma pack(pop)
-
 				class type
 				{
 				private:
@@ -198,7 +215,7 @@ namespace Infinity {
 					char pad_0040[4];            // 0x0040
 				public:
 					uint32_t     variableCount;  // 0x0044
-					typename_functions* pFunctions; // 0x0048
+					typename_functions* pFunctions; // 0x0048 (holds all types of functions, including proto engine ones)
 				private:
 					char _pad_0050[4];           // 0x0050–0x53
 				public:

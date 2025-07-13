@@ -21,6 +21,6 @@ private:
 	static void TestStaticFunction(FunctionContext* args, FunctionResult* result);
 	static char* TestStaticNativeFunction(char*);
 
-	static void DynamicProtoMethod(ManagedScriptInstance* selfPtr, FunctionContext* args);
+	static void DynamicProtoMethod(ManagedScriptInstance* selfPtr, FunctionContext* args, FunctionResult* result);
 	static void DynamicProtoNativeMethod(ManagedScriptInstance*, PlayerIdentity*);
 };

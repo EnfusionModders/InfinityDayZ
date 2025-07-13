@@ -22,58 +22,6 @@ EnforceScriptCtx g_pEnforceScriptContext = NULL; //ptr to Core module script ctx
 static bool detourComplete = false;
 static int totalRegisteredClasses = 0;
 
-
-using FnSubCELoop = __int64(__fastcall*)(__int64* a1, unsigned int a2, unsigned __int8 a3);
-static FnSubCELoop f_FnSubCELoop = nullptr;
-
-static __int64 __fastcall detour_FnSubCELoop(__int64* a1, unsigned int a2, unsigned __int8 a3)
-{
-	return NULL;
-}
-
-using FnSub140668C00 = __int64(__fastcall*)(
-	int*,
-	char*,
-	char,
-	char*,
-	__int64,
-	__int64
-	);
-
-static FnSub140668C00  orig_sub_140668C00 = nullptr;
-
-static __int64 __fastcall detour_sub_140668C00(
-	int* a1,
-	char* a2,
-	char         a3,
-	char* a4,
-	__int64      a5,
-	__int64      a6
-) {
-	// Pre-call logging
-	Infinity::Logging::Debugln(
-		"▶ sub_140668C00(a1=%d, a2=%s, a3=%d, a4=\"%s\", a5=0x%llX, a6=0x%llX)",
-		a1,
-		a2,
-		(int)a3,
-		a4 ? a4 : "<null>",
-		(unsigned long long)a5,
-		(unsigned long long)a6
-	);
-
-	// Call the original
-	__int64 result = orig_sub_140668C00(a1, a2, a3, a4, a5, a6);
-
-	// Post-call logging
-	Infinity::Logging::Debugln(
-		"◀ sub_140668C00 returned 0x%llX",
-		(unsigned long long)result
-	);
-
-	return result;
-}
-
-
 /*
 * Registers a global proto native function, this is the highest level of modules starts from 1_Core
 * This detour gets hold of script ctx for us to register our own functions after our plugins have loaded up
@@ -258,41 +206,6 @@ bool InitScriptEngine()
 	f_RegisterGlobalFunc = (FnRegisterGlobalFunc)(ptrFnRegisterGlobalFn);
 	DetourAttach(&(PVOID&)f_RegisterGlobalFunc, RegisterGlobalFunction);
 	DetourTransactionCommit();
-
-	void* addr2 = Infinity::Utils::FindPattern("48 89 5C 24 ? 55 41 56 41 57 48 83 EC ? 49 8B E9", GetModuleHandle(NULL), /*skip=*/0);
-	if (!addr2) {
-		Infinity::Logging::Errorln("Hook(sub_140668C00): pattern not found");
-	}
-	orig_sub_140668C00 = reinterpret_cast<FnSub140668C00>(addr2);
-
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(reinterpret_cast<PVOID*>(&orig_sub_140668C00), detour_sub_140668C00);
-	LONG status2 = DetourTransactionCommit();
-	if (status2 != NO_ERROR) {
-		Infinity::Logging::Errorln("DetourAttach(sub_140668C00) failed: %d", status2);
-	}
-	else {
-		Infinity::Logging::Debugln("Hooked sub_140668C00 at %p", addr2);
-	}
-
-	///--Test CELOOP
-	void* addr3 = Infinity::Utils::FindPattern("48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? ? ? ? 41 0F B6 F8 8B F2", GetModuleHandle(NULL), 0);
-	if (!addr3) {
-		Infinity::Logging::Errorln("Hook(sub_CELOOP): pattern not found");
-	}
-	f_FnSubCELoop = reinterpret_cast<FnSubCELoop>(addr3);
-
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(reinterpret_cast<PVOID*>(&f_FnSubCELoop), detour_FnSubCELoop);
-	LONG status3 = DetourTransactionCommit();
-	if (status3 != NO_ERROR) {
-		Infinity::Logging::Errorln("DetourAttach(sub_CELOOP) failed: %d", status3);
-	}
-	else {
-		Infinity::Logging::Debugln("Hooked sub_CELOOP at %p", addr3);
-	}
 
 	return true;
 }
