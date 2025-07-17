@@ -11,6 +11,11 @@ using namespace Infinity::Enfusion::Enscript::Framework;
 class ExampleClass : public Infinity::BaseScriptClass {
 public:
 	ExampleClass();
+
+	static ManagedClass* enfTypePtr;
+	static ManagedScriptInstance* enfInstancePtr;
+
+	static bool CreateSingleton();
 	void RegisterStaticClassFunctions(RegistrationFunction registerMethod) override;
 	void RegisterDynamicClassFunctions(RegistrationFunction registerMethod) override;
 	void RegisterGlobalFunctions(RegistrationFunction registerFunction) override;

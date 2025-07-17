@@ -87,6 +87,24 @@ namespace Infinity {
 				};
 #pragma pack(pop)
 
+				class typename_variable
+				{
+				public:
+					void* varPtr; //0x0000
+					char* variable_name; //0x0008
+				private:
+					char pad_0010[16]; //0x0010
+				public:
+					class ScriptContext* pScriptContext; //0x0020
+				private:
+					char pad_0028[32]; //0x0028
+				}; //Size: 0x0048
+
+				struct typename_variables
+				{
+					class typename_variable* List[32]; //0x0000
+				};
+
 				class ScriptContext
 				{
 				private:
@@ -159,39 +177,50 @@ namespace Infinity {
 				class ManagedClass
 				{
 				private:
-					char pad_0000[24]; //0x0000
+					char pad_0000[16]; //0x0000
 				public:
+					char* name; //0x0010
 					class ScriptModule* pScriptModule; //0x0018
+					class ManagedClass* pParentType; //0x0020
 				private:
-					char pad_0020[40]; //0x0020
+					char pad_0028[16]; //0x0028
 				public:
-					typename_functions* pFunctions; //0x0048 (holds all types of functions, including proto engine ones)
+					typename_variables* pVariables; //0x0038
+				private:
+					char pad_0040[4]; //0x0040
+				public:
+					int32_t VarCount; //0x0044
+					typename_functions* pFunctions; //0x0048
 				private:
 					char pad_0050[4]; //0x0050
 				public:
 					int32_t functionsCount; //0x0054
 				private:
-					char pad_0058[236]; //0x0058
-				}; //Size: 0x0144
-
-				class typename_variable
-				{
+					char pad_0064[64]; //0x0064
 				public:
-					void* varPtr; //0x0000
-					char* variable_name; //0x0008
-				private:
-					char pad_0010[16]; //0x0010
-				public:
-					class ScriptContext* pScriptContext; //0x0020
-				private:
-					char pad_0028[32]; //0x0028
-				}; //Size: 0x0048
+					typename_function* FindFunctionPointer(std::string fnName)
+					{
+						if (!pFunctions)
+							return nullptr;
 
-				struct typename_variables
-				{
-					class typename_variable* List[32]; //0x0000
-				};
+						typename_functions* tfns = pFunctions;
+						if (!tfns)
+							return nullptr;
 
+						for (int i = 0; i < functionsCount; ++i)
+						{
+							typename_function* fn = tfns->List[i];
+							if (!fn || !fn->name || !fn->pContext)
+								break;
+
+							if (std::string(fn->name) == fnName)
+								return fn;
+						}
+						return nullptr;
+					}
+				}; //Size: 0x00A4
+
+				
 				class type
 				{
 				private:

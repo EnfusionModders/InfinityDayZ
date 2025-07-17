@@ -12,22 +12,25 @@
 #include <cstdlib>
 
 namespace fs = std::filesystem;
+namespace EnfTypes = Infinity::Enfusion::Enscript::Framework;
 
 //Printing to DayZ console
-const std::string PATTERN_PRINT_TO_CONSOLE = "48 8B C4 48 89 50 ? 4C 89 40 ? 4C 89 48 ? 53 57 48 81 EC ? ? ? ? C6 44 24";
+const std::string PATTERN_PRINT_TO_CONSOLE = "48 8B C4 48 89 50 ? 4C 89 40 ? 4C 89 48 ? 53 57 48 81 EC ? ? ? ? C6 44 24"; //DIAG & RETAIL
 
-//Patterns for calling global methods (non-engine/proto)
-const std::string PATTERN_LOOKUP_GLOBAL_METHOD = "40 53 48 83 EC ? 48 8B D9 E8 ? ? ? ? 48 89 44 24";
-const std::string PATTERN_CALLUP_GLOBAL_METHOD = "40 53 48 83 EC ? ? ? ? ? 48 8D 44 24 ? 48 8B DA 4C 8D 4C 24 ? 48 89 44 24 ? 0F 29 44 24 ? E8 ? ? ? ? 48 8B C3 48 83 C4 ? 5B C3 ? 48 89 5C 24 ? 48 89 6C 24";
+//Pattern for calling global methods (non-engine/proto)
+const std::string PATTERN_LOOKUP_GLOBAL_METHOD = "40 53 48 83 EC ? 48 8B D9 E8 ? ? ? ? 48 89 44 24"; //DIAG & RETAIL
 
-//Patterns for calling dynamic class methods (non-engine/proto)
-const std::string PATTERN_LOOKUP_METHOD = "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B FA 48 8B D9 48 85 C9 74 ? 48 89 54 24";
-const std::string PATTERN_CALLUP_METHOD = "44 89 44 24 ? 4C 89 4C 24 ? 53";
-const std::string PATTEN_CALL_CLEANUP_METHOD = "48 83 EC ? ? ? ? 4D 85 C9 74 ? 49 8B C9";
+//Patterns for calling dynamic & static class methods (non-engine/proto)
+const std::string PATTERN_LOOKUP_METHOD = "48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B FA 48 8B D9 48 85 C9 74 ? 48 89 54 24"; //DIAG & RETAIL
+const std::string PATTERN_CALLUP_METHOD = "44 89 44 24 ? 4C 89 4C 24 ? 53"; //DIAG & RETAIL
+
+//Pattern for creating a Enforce class instance of a Enforce type
+const std::string PATTERN_FN_CREATE_INSTANCE = "48 83 EC ? 45 0F B6 C8 4C 8B C2"; //DIAG & RETAIL
 
 void Infinity::LoadPlugins()
 {
     Println("Loading plugins...");
+    Infinity::InitPatterns(); //Locate patterns once
 
     char buffer[MAX_PATH];
     if (!GetModuleFileNameA(NULL, buffer, MAX_PATH)) {
@@ -86,21 +89,111 @@ void Infinity::LoadPlugins()
 
 void Infinity::RegisterScriptClass(std::unique_ptr<Infinity::BaseScriptClass> pScriptClass)
 {
-    //add script instance to class manager and begin init
-    g_BaseScriptManager->Register(std::move(pScriptClass));
+    g_BaseScriptManager->Register(std::move(pScriptClass)); //add script instance to class manager and begin init
 }
 
-//DayZ's console logging
-Infinity::FnLogToConsole Infinity::f_LogToConsole = reinterpret_cast<Infinity::FnLogToConsole>(Infinity::Utils::FindPattern(PATTERN_PRINT_TO_CONSOLE, GetModuleHandle(NULL), 0));
+Infinity::FnLogToConsole Infinity::f_LogToConsole;
 
-//Call-up global method in a given script module
-Infinity::FnLookupGlobalMethod Infinity::f_LookupGlobalMethod = reinterpret_cast<Infinity::FnLookupGlobalMethod>(Infinity::Utils::FindPattern(PATTERN_LOOKUP_GLOBAL_METHOD, GetModuleHandle(NULL), 0));
-Infinity::FnCallGlobalMethod Infinity::f_CallGlobalMethod = reinterpret_cast<Infinity::FnCallGlobalMethod>(Infinity::Utils::FindPattern(PATTERN_CALLUP_GLOBAL_METHOD, GetModuleHandle(NULL), 0));
+Infinity::FnLookupGlobalMethod Infinity::f_LookupGlobalMethod;
+Infinity::FnCallGlobalMethod Infinity::f_CallGlobalMethod;
 
-//Call-up dynamic method from instance of enforce class
-Infinity::FnLookupMethod Infinity::f_LookUpMethod = reinterpret_cast<Infinity::FnLookupMethod>(Infinity::Utils::FindPattern(PATTERN_LOOKUP_METHOD, GetModuleHandle(NULL), 0));
-Infinity::FnCallUpMethod Infinity::f_CallUpMethod = reinterpret_cast<Infinity::FnCallUpMethod>(Infinity::Utils::FindPattern(PATTERN_CALLUP_METHOD, GetModuleHandle(NULL), 0));
-Infinity::FnCleanupMethodCall Infinity::f_CleanupUpMethodCall = reinterpret_cast<Infinity::FnCleanupMethodCall>(Infinity::Utils::FindPattern(PATTEN_CALL_CLEANUP_METHOD, GetModuleHandle(NULL), 0));
+Infinity::FnLookupMethod Infinity::f_LookUpMethod;
+Infinity::FnCallUpMethod Infinity::f_CallUpMethod;
+Infinity::FnCleanupMethodCall Infinity::f_CleanupUpMethodCall;
+
+Infinity::FnCreateInstance Infinity::f_CreateInstance;
+
+//Find patterns for some Enforce function
+void Infinity::InitPatterns()
+{
+    const std::string PATTERN_CALLUP_GLOBAL_METHOD =
+        IsDiagBuild()
+        ? "40 53 48 83 EC ? ? ? ? ? 48 8D 44 24 ? 48 8B DA 4C 8D 4C 24 ? 48 89 44 24 ? 0F 29 44 24 ? E8 ? ? ? ? 48 8B C3 48 83 C4 ? 5B C3 ? 40 53" //DIAG
+        : "40 53 48 83 EC ? ? ? ? ? 48 8D 44 24 ? 48 8B DA 4C 8D 4C 24 ? 48 89 44 24 ? 0F 29 44 24 ? E8 ? ? ? ? 48 8B C3 48 83 C4 ? 5B C3 ? 48 89 5C 24 ? 48 89 6C 24"; //RETAIL
+
+    //DayZ's console logging
+    Infinity::f_LogToConsole = reinterpret_cast<Infinity::FnLogToConsole>(Infinity::Utils::FindPattern(PATTERN_PRINT_TO_CONSOLE, GetModuleHandle(NULL), 0));
+    if (!f_LogToConsole)
+        Errorln("InitPatterns: failed to locate f_LogToConsole, check pattern!");
+
+    //Call-up global method in a given script module
+    Infinity::f_LookupGlobalMethod = reinterpret_cast<Infinity::FnLookupGlobalMethod>(Infinity::Utils::FindPattern(PATTERN_LOOKUP_GLOBAL_METHOD, GetModuleHandle(NULL), 0));
+    Infinity::f_CallGlobalMethod = reinterpret_cast<Infinity::FnCallGlobalMethod>(Infinity::Utils::FindPattern(PATTERN_CALLUP_GLOBAL_METHOD, GetModuleHandle(NULL), 0));
+    
+    if (!f_LookupGlobalMethod || !f_CallGlobalMethod)
+        Errorln("InitPatterns: failed to locate f_LookupGlobalMethod or f_CallGlobalMethod, check patterns!");
+
+    //Call-up dynamic method from instance of enforce class
+    Infinity::f_LookUpMethod = reinterpret_cast<Infinity::FnLookupMethod>(Infinity::Utils::FindPattern(PATTERN_LOOKUP_METHOD, GetModuleHandle(NULL), 0));
+    Infinity::f_CallUpMethod = reinterpret_cast<Infinity::FnCallUpMethod>(Infinity::Utils::FindPattern(PATTERN_CALLUP_METHOD, GetModuleHandle(NULL), 0));
+
+    if (!f_LookUpMethod || !f_CallUpMethod)
+        Errorln("InitPatterns: failed to locate f_LookUpMethod or f_CallUpMethod, check patterns!");
+
+    const std::string PATTEN_CALL_CLEANUP_METHOD =
+        IsDiagBuild()
+        ? "40 53 48 83 EC ? ? ? ? 48 85 DB 74 ? 48 8B CB E8 ? ? ? ? 84 C0" //DIAG
+        : "48 83 EC ? ? ? ? 4D 85 C9 74 ? 49 8B C9"; //RETAIL
+
+    //Engine cleanup method
+    Infinity::f_CleanupUpMethodCall = reinterpret_cast<FnCleanupMethodCall>(Infinity::Utils::FindPattern(PATTEN_CALL_CLEANUP_METHOD, GetModuleHandle(NULL), 0));
+    if (!f_CleanupUpMethodCall)
+        Errorln("InitPatterns: failed to locate f_CleanupUpMethodCall, check pattern!");
+}
+
+//Call to create and return ptr of a Enfusion class instance
+EnfTypes::ManagedScriptInstance* Infinity::CreateEnforceInstance(EnfTypes::ScriptModule* pModule, const std::string& typeName)
+{
+    if (!f_CreateInstance){
+        Infinity::f_CreateInstance = reinterpret_cast<FnCreateInstance>(Infinity::Utils::FindPattern(PATTERN_FN_CREATE_INSTANCE, GetModuleHandle(NULL), 0));
+    }
+
+    if (!f_CreateInstance) {
+        Errorln("CreateEnforceInstance: failed to locate f_CreateInstance, check pattern!");
+        return nullptr;
+    }
+
+    __int64 v0 = NULL;
+    __int64 instancePtr = NULL;
+
+    if (IsDiagBuild())
+    {
+        //DIAG
+        using FnMagicCallDiag = __int64(__fastcall*)(__int64 a1, char a2);
+        static FnMagicCallDiag f_FnMagicCallDiag = reinterpret_cast<FnMagicCallDiag>(Infinity::Utils::FindPattern("40 57 48 83 EC ? 48 8B F9 45 33 C9", GetModuleHandle(NULL), 0));
+        
+        if (!f_FnMagicCallDiag) {
+            Errorln("CreateEnforceInstance: failed to locate f_FnMagicCallDiag, check pattern!");
+            return nullptr;
+        }
+
+        v0 = f_CreateInstance(pModule, typeName.c_str(), 0);
+        instancePtr = f_FnMagicCallDiag(v0, 1);
+    }
+    else
+    {
+       //RETAIL
+       using FnMagicCall = __int64(__fastcall*)(__int64 a1);
+       static FnMagicCall f_FnMagicCall = reinterpret_cast<FnMagicCall>(Infinity::Utils::FindPattern("48 89 5C 24 ? 57 48 83 EC ? 48 8B F9 48 8B D1", GetModuleHandle(NULL), 0));
+
+       if (!f_FnMagicCall) {
+           Errorln("CreateEnforceInstance: failed to locate f_FnMagicCall, check pattern!");
+           return nullptr;
+       }
+
+       v0 = f_CreateInstance(pModule, typeName.c_str(), 0);
+       instancePtr = f_FnMagicCall(v0);
+    }
+
+    if (instancePtr != 0)
+    {
+        Debugln("CreateEnforceInstance: Dynamic Instance of \'%s\' -> 0x%llX", typeName, (unsigned long long)v0);
+        return reinterpret_cast<EnfTypes::ManagedScriptInstance*>(instancePtr);
+    }
+    
+    Debugln("CreateEnforceInstance: Failed to create instance of type \'%s\' check typename!", typeName);
+    return nullptr;
+}
 
 Infinity::Enfusion::Enscript::FunctionContext* Infinity::CreateFunctionContext()
 {
@@ -299,5 +392,21 @@ void Infinity::Logging::Errorln(const char* format, ...)
     fputc('\n', stdout);
 
     SetConsoleTextAttribute(hOut, oldAttrs);
+}
+bool Infinity::Logging::IsDiagBuild()
+{
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argv) return false;
+
+    bool found = false;
+    for (int i = 1; i < argc; ++i) {
+        if (_wcsicmp(argv[i], L"-diag") == 0) {
+            found = true;
+            break;
+        }
+    }
+    LocalFree(argv);
+    return found;
 }
 #pragma endregion

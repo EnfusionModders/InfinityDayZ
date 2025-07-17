@@ -26,11 +26,16 @@ namespace Infinity {
 	typedef int(__fastcall* FnLookupGlobalMethod)(Infinity::Enfusion::Enscript::Framework::ScriptModule* moduleCtx, const char* methodName);
 	typedef void*(__fastcall* FnCallGlobalMethod)(Infinity::Enfusion::Enscript::Framework::ScriptModule* moduleCtx, Infinity::Enfusion::Enscript::FunctionResult* a2, int idx, __int64* someRet, ...);
 
-	//dynamic class instance enforce method call (non-engine/proto)
+	//Console logging
 	typedef __int64(__fastcall* FnLogToConsole)(int a1, const char* a2, ...);
+
+	//dynamic class instance enforce method call (non-engine/proto)
 	typedef __int64(__fastcall* FnLookupMethod)(__int64 classPtr, const char* methodName);
 	typedef __int64(__fastcall* FnCallUpMethod)(__int64 instancePtr, Infinity::Enfusion::Enscript::FunctionResult* a2, int idx, ...);
 	typedef void(__fastcall* FnCleanupMethodCall)(Infinity::Enfusion::Enscript::FunctionResult* a1);
+
+	//create dynamic instance of an Enforce type
+	typedef __int64(__fastcall* FnCreateInstance)(Infinity::Enfusion::Enscript::Framework::ScriptModule* moduleCtx, const char* typeName, char a3);
 
 	class _CLINKAGE BaseScriptClass {
 	public:
@@ -62,6 +67,7 @@ namespace Infinity {
 		_CLINKAGE void Errorln(const char* format, ...);
 		_CLINKAGE void Warnln(const char* format, ...);
 		_CLINKAGE void Debugln(const char* format, ...);
+		_CLINKAGE bool IsDiagBuild();
 	}
 	namespace Utils {
 		_CLINKAGE void* FindPattern(std::string pattern, HMODULE module, int offset);
@@ -72,18 +78,24 @@ namespace Infinity {
 
 	_CLINKAGE extern FnLogToConsole f_LogToConsole;
 
-	//Prints to DayZ Server console
-	template<typename... Args>
-	void PrintToConsole(const char* message, Args&&... args) {
-		f_LogToConsole(1, message, std::forward<Args>(args)...);
-	}
-
 	_CLINKAGE extern FnLookupGlobalMethod f_LookupGlobalMethod;
 	_CLINKAGE extern FnCallGlobalMethod f_CallGlobalMethod;
 
 	_CLINKAGE extern FnLookupMethod f_LookUpMethod;
 	_CLINKAGE extern FnCallUpMethod f_CallUpMethod;
 	_CLINKAGE extern FnCleanupMethodCall f_CleanupUpMethodCall;
+
+	_CLINKAGE extern FnCreateInstance f_CreateInstance;
+
+	_CLINKAGE void InitPatterns();
+
+	//Prints to DayZ Server console
+	template<typename... Args>
+	void PrintToConsole(const char* message, Args&&... args) {
+		f_LogToConsole(1, message, std::forward<Args>(args)...);
+	}
+
+	_CLINKAGE Infinity::Enfusion::Enscript::Framework::ManagedScriptInstance* CreateEnforceInstance(Enfusion::Enscript::Framework::ScriptModule* pModule, const std::string& typeName);
 
 	//Helper functions to create function calling & return context
 	_CLINKAGE Infinity::Enfusion::Enscript::FunctionContext* CreateFunctionContext();
@@ -96,7 +108,7 @@ namespace Infinity {
 	/*
 	* Use this function to lookup and call an Enforce level method at a given enforce class instance
 	* Returns void* result data of the method call.
-	* NOTE: You cannot call a proto engine method using this! Strictly regular class methods/functions (non static!)
+	* NOTE: You cannot call a proto engine method using this! Strictly regular class methods/functions (supports static)
 	*/
 	template<typename... Args>
 	void* CallEnforceMethod(Enfusion::Enscript::Framework::ManagedScriptInstance* pInstance, const std::string& methodName, Args&&... args) {
@@ -111,9 +123,19 @@ namespace Infinity {
 			return nullptr;
 		}
 
+		if (!f_LookUpMethod) {
+			Infinity::Logging::Errorln("CallEnforceMethod: call failed, f_LookUpMethod is null! Check pattern");
+			return nullptr;
+		}
+
 		int idx = f_LookUpMethod(reinterpret_cast<__int64>(pInstance->pType), methodName.c_str());
 		if (idx == -1){
 			Infinity::Logging::Errorln("CallEnforceMethod: call failed, method could not be found! Check name");
+			return nullptr;
+		}
+
+		if (!f_CallUpMethod) {
+			Infinity::Logging::Errorln("CallEnforceMethod: call failed, f_CallUpMethod is null! Check pattern");
 			return nullptr;
 		}
 
@@ -133,7 +155,7 @@ namespace Infinity {
 	/*
 	* Use this function to lookup and call an Enforce global level method at a given enforce ScriptModule instance (i.e Game, World, Mission)
 	* Returns void* result data of the method call.
-	* NOTE: You cannot call a proto engine method using this! Strictly regular class methods/functions (non static!)
+	* NOTE: You cannot call a proto engine method using this! Strictly regular class methods/functions
 	*/
 	template<typename... Args>
 	void* CallGlobalEnforceMethod(Enfusion::Enscript::Framework::ScriptModule* pModule, const std::string& methodName, Args&&... args) {

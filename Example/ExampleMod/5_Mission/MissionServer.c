@@ -1,10 +1,7 @@
 modded class MissionServer
 {
-	ref ExampleClass m_egInst;
-
 	void MissionServer()
 	{
-		m_egInst = new ExampleClass();
 	}
 
 	override void OnEvent(EventType eventTypeId, Param params)
@@ -22,8 +19,8 @@ modded class MissionServer
 
 			if (_identity)
 			{
-				m_egInst.DynamicProtoNativeMethod(_identity);
-				m_egInst.DynamicProtoMethod(_identity);
+				ExampleClass.m_Instance.DynamicProtoNativeMethod(_identity);
+				ExampleClass.m_Instance.DynamicProtoMethod(_identity);
 			}
 		}
 	}

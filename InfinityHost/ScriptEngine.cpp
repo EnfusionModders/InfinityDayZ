@@ -175,8 +175,8 @@ bool InitScriptEngine()
 	Debugln("Init script engine.");
 
 	//Define Patterns
-	PATTERN_REG_ENGINE_CLASS_FUNCTION = "48 83 EC 38 45 0F B6 C8"; //BOTH
-	PATTERN_REG_GLOBAL_PROTO_FUNCTION = "48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 41 8B F1 48 8B E9"; //BOTH
+	PATTERN_REG_ENGINE_CLASS_FUNCTION = "48 83 EC 38 45 0F B6 C8"; //DIAG & RETAIL
+	PATTERN_REG_GLOBAL_PROTO_FUNCTION = "48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC 20 41 8B F1 48 8B E9"; //DIAG & RETAIL
 
 	PATTERN_REG_STATIC_PROTO_FUNCTION =
 		IsDiagBuild()
@@ -195,6 +195,10 @@ bool InitScriptEngine()
 	DetourUpdateThread(GetCurrentThread());
 	static auto ptrFnRegisterClass = Infinity::Utils::FindPattern(PATTERN_REG_ENGINE_CLASS_FUNCTION, GetModuleHandle(NULL), 0);
 	f_EngineRegisterClass = (FnEngineRegisterClass)(ptrFnRegisterClass);
+	if (!f_EngineRegisterClass) {
+		Errorln("InitScriptEngine: Error! pointer for FnEngineRegisterClass cannot be found! Check pattern");
+		return false;
+	}
 	DetourAttach(&(PVOID&)f_EngineRegisterClass, EngineRegisterClass);
 	DetourTransactionCommit();
 
@@ -204,6 +208,10 @@ bool InitScriptEngine()
 	DetourUpdateThread(GetCurrentThread());
 	static auto ptrFnRegisterGlobalFn = Infinity::Utils::FindPattern(PATTERN_REG_GLOBAL_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
 	f_RegisterGlobalFunc = (FnRegisterGlobalFunc)(ptrFnRegisterGlobalFn);
+	if (!f_RegisterGlobalFunc) {
+		Errorln("InitScriptEngine: Error! pointer for FnRegisterGlobalFunc cannot be found! Check pattern");
+		return false;
+	}
 	DetourAttach(&(PVOID&)f_RegisterGlobalFunc, RegisterGlobalFunction);
 	DetourTransactionCommit();
 

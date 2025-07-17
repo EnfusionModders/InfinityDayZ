@@ -4,8 +4,10 @@
 #include "NetworkServer.h"
 #include "ExampleClass.h"
 
-ManagedClass* enfTypePtr = nullptr; //ptr to the Enfusion typename declartion of this class (not an actual class instace!)
-                                    //useful for invoking static class member functions
+ManagedClass* ExampleClass::enfTypePtr = nullptr; //ptr to the Enfusion typename declartion of this class (not an actual class instace!)
+                                                 //useful for invoking static class member functions
+
+ManagedScriptInstance* ExampleClass::enfInstancePtr = nullptr; //ptr to the Enfusion singleton instance of ExampleClass
 
 ExampleClass::ExampleClass() : BaseScriptClass("ExampleClass")
 {
@@ -24,6 +26,7 @@ void ExampleClass::RegisterDynamicClassFunctions(Infinity::RegistrationFunction 
 	registerMethod("DynamicProtoMethod", &ExampleClass::DynamicProtoMethod);
 	registerMethod("DynamicProtoNativeMethod", &ExampleClass::DynamicProtoNativeMethod);
 
+
     enfTypePtr = GetEnfTypePtr(); //Get ptr here, at this point our typename in Enforce has fully been declared.
 };
 
@@ -33,6 +36,13 @@ void ExampleClass::RegisterGlobalFunctions(Infinity::RegistrationFunction regist
 	registerFunction("GlobalNonNativeFn", &ExampleClass::GlobalNonNativeFn);
 };
 
+bool ExampleClass::CreateSingleton()
+{
+    //Create a dynamic Enforce instance of our class
+    enfInstancePtr = Infinity::CreateEnforceInstance(enfTypePtr->pScriptModule, (const char*)"ExampleClass");
+
+    return (enfInstancePtr != 0);
+}
 
 /*
 * proto native void GlobalFnTest(string someData);
