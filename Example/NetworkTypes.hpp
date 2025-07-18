@@ -39,18 +39,22 @@ namespace NetworkTypes {
 
     class NetworkServer
     {
+    
+    };
+
+    class LoginMachine
+    {
     private:
-        char pad_0000[784]; //0x0000
+        char pad_0000[40]; //0x0000
     public:
-        class queued_players* pQueue; //0x0310
-    private:
-        char pad_0318[8]; //0x0318
+        class queued_players* pQueue; //0x0028
     public:
-        int32_t MaxQueueSize; //0x0320
-        int32_t loginQueueConcurrentPlayers; //0x0324
-        int32_t QueueSize; //0x0328
+        int32_t SomeOtherSize; //0x0034
+        int32_t MaxQueueSize; //0x0038
+        int32_t loginQueueConcurrentPlayers; //0x003C
+        int32_t QueueSize; //0x0040
     private:
-        char pad_032C[276]; //0x032C
+        char pad_0044[1276]; //0x0044
     public:
         queued_player* GetQueuedPlayer(int32_t dpid)
         {
@@ -66,7 +70,7 @@ namespace NetworkTypes {
 
             return nullptr;
         }
-    }; //Size: 0x0440
+    }; //Size: 0x0540
 }
 
 #endif

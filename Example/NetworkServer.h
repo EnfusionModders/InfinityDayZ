@@ -9,10 +9,10 @@
 namespace PluginUtils{
     namespace NetworkUtils{
 
-        const std::string PATTERN_INIT_NETWORK_SERVER = "48 8B C4 55 56 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 80 B9"; //DIAG & RETAIL
         const std::string PATTERN_FN_STAGE_DISCONNECT = "49 8B C0 44 0F B6 C2"; //DIAG & RETAIL
         
         //RETAIL
+        std::string PATTERN_INIT_NETWORK_SERVER     = "48 83 EC ? E8 ? ? ? ? 33 C0 48 89 51 ? 48 89 41 ? 48 89 41 ? 48 89 41";
         std::string PATTERN_FN_COMMIT_DISCONNECT    = "48 8B C2 8B D1 48 8B C8 E9 ? ? ? ? ? ? ? 48 8B C2";
         std::string PATTERN_FN_PLAYER_CONNECT       = "48 89 5C 24 ? 55 41 56 41 57 48 83 EC ? 49 8B E9";
         std::string PATTERN_FN_PLAYER_DISCONNECT    = "40 55 53 56 41 55 41 57 48 8B EC";
@@ -20,9 +20,10 @@ namespace PluginUtils{
         std::string PATTERN_FN_ON_QUEUE_REMOVE      = "48 89 74 24 ? 57 48 83 EC ? 8B FA 48 8B F1 E8 ? ? ? ? 8B 4E";
 
         NetworkTypes::NetworkServer* p_EnfNetworkServer = nullptr;
+        NetworkTypes::LoginMachine* p_EnfLoginMachine = nullptr;
 
-        using FnInitNetworkServer = __int64(__fastcall*)(__int64);
-        static FnInitNetworkServer f_InitNetworkServer = nullptr;
+        using FnInitLoginMachine = __int64(__fastcall*)(__int64* a1, NetworkTypes::NetworkServer* pNs);
+        static FnInitLoginMachine f_InitLoginMachine;
 
         using FnStageDisconnect = __int64(__fastcall*)(int* dpid, unsigned __int8 flag, NetworkTypes::NetworkServer* pNs); //dpid, 1, ptr to Networkserver
         static FnStageDisconnect f_StageDisconnect = nullptr;
@@ -46,34 +47,33 @@ namespace PluginUtils{
         using FnOnRemoveFromQueue = __int64(__fastcall*)(__int64 loginMachine, unsigned int dpid); //ptr to LoginMachine, dpid
         static FnOnRemoveFromQueue f_OnRemoveFromQueue = nullptr;
 
-        //Detour engine function, find our ptr to internal NetworkServer
-        static __int64 __fastcall InitNetworkServer(__int64 a1)
+        //Detour engine function, this gets called when engine creates LoginMachine & NetworkServer
+        static __int64 __fastcall InitLoginMachine(__int64* a1, NetworkTypes::NetworkServer* a2)
         {
-            __int64 result = f_InitNetworkServer(a1); //call original
+            __int64 result = f_InitLoginMachine(a1, a2); //call original
+
+            p_EnfLoginMachine = reinterpret_cast<NetworkTypes::LoginMachine*>(result);
+
+            Infinity::Logging::Debugln(
+                "InitLoginMachine(a1=0x%llX, NetworkServer=0x%llX, LoginMachine=0x%llX)",
+                (unsigned long long)a1,
+                (unsigned long long)a2,
+                (unsigned long long)result
+            );
+
+            
             if (!p_EnfNetworkServer)
-            {
-                //hold onto ptr to NetworkServer
-                p_EnfNetworkServer = reinterpret_cast<NetworkTypes::NetworkServer*>(a1);
+                p_EnfNetworkServer = a2; //hold onto ptr to NetworkServer
+            
+            //Find function calls for disconnecting
+            f_StageDisconnect = reinterpret_cast<FnStageDisconnect>(Infinity::Utils::FindPattern(PATTERN_FN_STAGE_DISCONNECT, GetModuleHandle(NULL), 0));
+            f_CommitDisconnect = reinterpret_cast<FnCommitDisconnect>(Infinity::Utils::FindPattern(PATTERN_FN_COMMIT_DISCONNECT, GetModuleHandle(NULL), 0));
 
-                Infinity::Logging::Debugln("InitNetworkServer(a1=0x%llX)", (unsigned long long)a1);
-                Infinity::Logging::Debugln("InitNetworkServer returned 0x%llX", (unsigned long long)result);
-
-                //Find function calls for disconnecting
-                f_StageDisconnect = reinterpret_cast<FnStageDisconnect>(Infinity::Utils::FindPattern(PATTERN_FN_STAGE_DISCONNECT, GetModuleHandle(NULL), 0));
-                f_CommitDisconnect = reinterpret_cast<FnCommitDisconnect>(Infinity::Utils::FindPattern(PATTERN_FN_COMMIT_DISCONNECT, GetModuleHandle(NULL), 0));
-
-
-                //Unhook, we got our ptr
-                DetourTransactionBegin();
-                DetourUpdateThread(GetCurrentThread());
-                DetourDetach(reinterpret_cast<PVOID*>(&f_InitNetworkServer), InitNetworkServer);
-                DetourTransactionCommit();
-
-                //Create a dynamic instance of our custom class, using it for callbacks to Enforce
-                if (!ExampleClass::enfInstancePtr){
-                    ExampleClass::CreateSingleton();
-                }
+            //Create a dynamic instance of our custom class, using it for callbacks to Enforce
+            if (!ExampleClass::enfInstancePtr) {
+                ExampleClass::CreateSingleton();
             }
+
             return result;
         }
 
@@ -92,21 +92,21 @@ namespace PluginUtils{
             );
 
             
-            auto networkPtr = p_EnfNetworkServer;
-            std::thread([dpid, networkPtr]() {
-                NetworkTypes::queued_player* player = networkPtr->GetQueuedPlayer(static_cast<int32_t>(dpid));
+            auto loginMachinePtr = p_EnfLoginMachine;
+            std::thread([dpid, loginMachinePtr]() {
+                NetworkTypes::queued_player* player = loginMachinePtr->GetQueuedPlayer(static_cast<int32_t>(dpid));
   
                 //wait until index is populated by engine
                 while (player && player->positionIdx == -1)
                 {
-                    if (networkPtr->QueueSize == 0) {
+                    if (loginMachinePtr->QueueSize == 0) {
                         Infinity::Logging::Warnln("Queue is empty...");
                         break;
                     }
                     Sleep(50);
                 }
 
-                if (player && networkPtr->QueueSize > 0)
+                if (player && loginMachinePtr->QueueSize > 0)
                 {
                     Infinity::Logging::Warnln("pos: %d", player->positionIdx);
                     Infinity::CallEnforceMethod(ExampleClass::enfInstancePtr, "OnAddToQueue", player->dpid, player->pSteam64->steamId, player->pName, player->positionIdx);
@@ -144,9 +144,9 @@ namespace PluginUtils{
         {
             Infinity::Logging::Debugln("OnRemoveFromQueue(a1=0x%llX, a2=%d)", (unsigned long long)loginMachine, dpid);
 
-            if (p_EnfNetworkServer->QueueSize > 0)
+            if (p_EnfLoginMachine->QueueSize > 0)
             {
-                NetworkTypes::queued_player* player = p_EnfNetworkServer->GetQueuedPlayer(dpid);
+                NetworkTypes::queued_player* player = p_EnfLoginMachine->GetQueuedPlayer(dpid);
                 if (player)
                 {
                     Infinity::Logging::Warnln("Removed player %d from queue", player->dpid);
@@ -157,7 +157,6 @@ namespace PluginUtils{
             return f_OnRemoveFromQueue(loginMachine, dpid); //Call original
         }
 
-        
         //Detour engine function, this gets called when a player connects most early stage possible.
         static __int64 __fastcall OnPlayerConnect(int* dpid, char* steam64Id, char flag, char* name, __int64 a5, NetworkTypes::NetworkServer* a6)
         {
@@ -192,6 +191,7 @@ namespace PluginUtils{
             if (Infinity::Logging::IsDiagBuild())
             {
                 //DIAG
+                PATTERN_INIT_NETWORK_SERVER  = "48 89 5C 24 ? 57 48 83 EC ? 48 8B DA 48 8B F9 E8 ? ? ? ? 33 C0 48 89 5F ? 48 8B 5C 24 ? 48 89 47 ? 48 89 47 ? 48 89 47";
                 PATTERN_FN_COMMIT_DISCONNECT = "48 8B C2 8B D1 48 8B C8 E9 ? ? ? ? ? ? ? 49 8B C0";
                 PATTERN_FN_PLAYER_CONNECT    = "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 49 8B F9 48 8B EA";
                 PATTERN_FN_PLAYER_DISCONNECT = "40 55 53 41 54 41 56 48 8B EC";
@@ -199,18 +199,17 @@ namespace PluginUtils{
                 PATTERN_FN_ON_QUEUE_REMOVE   = "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 8B FA 48 8B 0D";
             }
 
-            void* addr = Infinity::Utils::FindPattern(PATTERN_INIT_NETWORK_SERVER, GetModuleHandle(NULL), 0);
-            if (!addr) {
-                Infinity::Logging::Errorln("Hook(FindNetworkServer): pattern not found");
+            //Login machine
+            void* addrLoginMachine = Infinity::Utils::FindPattern(PATTERN_INIT_NETWORK_SERVER, GetModuleHandle(NULL), 0);
+            if (!addrLoginMachine) {
+                Infinity::Logging::Errorln("Hook(FnInitLoginMachine): pattern not found");
                 return false;
             }
+            f_InitLoginMachine = reinterpret_cast<FnInitLoginMachine>(addrLoginMachine);
 
-            f_InitNetworkServer = reinterpret_cast<FnInitNetworkServer>(addr);
-
-            //Network Server finder
             DetourTransactionBegin();
             DetourUpdateThread(GetCurrentThread());
-            DetourAttach(reinterpret_cast<PVOID*>(&f_InitNetworkServer), InitNetworkServer);
+            DetourAttach(reinterpret_cast<PVOID*>(&f_InitLoginMachine), InitLoginMachine);
             DetourTransactionCommit();
 
             //Player connect event
@@ -291,10 +290,10 @@ namespace PluginUtils{
         //Swap two given index with eachother
         void SwapPlayerInQueue(int from, int to)
         {
-            NetworkTypes::queued_players* queue = p_EnfNetworkServer->pQueue;
+            NetworkTypes::queued_players* queue = p_EnfLoginMachine->pQueue;
             auto swapSlots = [&](int i, int j) {
-                if (i < p_EnfNetworkServer->QueueSize
-                    && j < p_EnfNetworkServer->QueueSize)
+                if (i < p_EnfLoginMachine->QueueSize
+                    && j < p_EnfLoginMachine->QueueSize)
                 {
                     NetworkTypes::queued_player*& P = queue->List[i];
                     NetworkTypes::queued_player*& Q = queue->List[j];
