@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <algorithm>
 #include <cstdlib>
+#include <string>
+#include <cstring>
 
 namespace NetworkTypes {
     class Steam64Id
@@ -13,6 +15,12 @@ namespace NetworkTypes {
         char pad_0000[16]; //0x0000
     public:
         char steamId[18]; //0x0010
+    public:
+        std::string ToString() const
+        {
+            size_t len = ::strnlen(steamId, sizeof steamId);
+            return std::string(steamId, len);
+        }
     };
 
     class queued_player
@@ -49,10 +57,10 @@ namespace NetworkTypes {
     public:
         class queued_players* pQueue; //0x0028
     public:
-        int32_t SomeOtherSize; //0x0034
+        int32_t N00000011; //0x0030
+        int32_t QueueSize; //0x0034
         int32_t MaxQueueSize; //0x0038
         int32_t loginQueueConcurrentPlayers; //0x003C
-        int32_t QueueSize; //0x0040
     private:
         char pad_0044[1276]; //0x0044
     public:

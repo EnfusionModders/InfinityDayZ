@@ -2,6 +2,12 @@
 #include <InfinityPlugin.h>
 #include <algorithm>
 #include <thread>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <charconv>
+#include <cstring>
+
 #include "detours.h"
 #include "ExampleClass.h"
 #include "NetworkTypes.hpp"
@@ -40,12 +46,142 @@ namespace PluginUtils{
         static FnOnDisconnect f_OnPlayerDisconnected = nullptr;
 
         //On Add to queue
-        using FnOnAddToQueue = void(__fastcall*)(__int64 loginMachine, unsigned int dpid, void* steam64Id, char* name); //ptr to LoginMachine, dpid, Steam64, name
+        using FnOnAddToQueue = void(__fastcall*)(__int64 pLm, unsigned int dpid, void* steam64Id, char* name); //ptr to LoginMachine, dpid, Steam64, name
         static FnOnAddToQueue f_OnAddToQueue = nullptr;
 
         //On Remove from queue
         using FnOnRemoveFromQueue = __int64(__fastcall*)(__int64 loginMachine, unsigned int dpid); //ptr to LoginMachine, dpid
         static FnOnRemoveFromQueue f_OnRemoveFromQueue = nullptr;
+
+        std::vector<std::string> ReadAdminSteamIDs()
+        {
+            std::vector<std::string> ids;
+            std::ifstream file("Plugins/admins.txt");
+            if (!file.is_open())
+                return ids;
+
+            std::string line;
+            if (!std::getline(file, line)) {
+                file.close();
+                return ids;
+            }
+            file.close();
+
+            ids.reserve(16);
+
+            size_t start = 0;
+            while (start < line.size()) {
+                size_t pos = line.find(';', start);
+
+                if (pos == std::string::npos) {
+                    ids.emplace_back(line.substr(start));
+                    break;
+                }
+                else {
+                    ids.emplace_back(line.substr(start, pos - start));
+                    start = pos + 1;
+                }
+            }
+
+            return ids;
+        }
+
+        void ShuffleQueue(uint32_t dpid)
+        {
+            auto queue = p_EnfLoginMachine->pQueue;
+            int  size = p_EnfLoginMachine->QueueSize;
+            if (!queue || size <= 1)
+                return;  // nothing to do
+
+            auto adminIds = ReadAdminSteamIDs();
+
+            auto newPlayer = p_EnfLoginMachine->GetQueuedPlayer(dpid);
+            if (!newPlayer) {
+                Infinity::Logging::Errorln("NetworkServer::ShuffleQueue() Failed to shuffle queue, player was null...");
+                return;
+            }
+
+            std::string newId = newPlayer->pSteam64->ToString().c_str();
+
+            //decide if it is an admin
+            bool isNewAdmin = std::find(adminIds.begin(), adminIds.end(), newId)
+                != adminIds.end();
+
+            if (!isNewAdmin)
+                return; //Don't re-shuffle...
+
+            //flatten the queue into a vector
+            std::vector<NetworkTypes::queued_player*> temp;
+            temp.reserve(size);
+            for (int i = 0; i < size; ++i)
+                temp.push_back(queue->List[i]);
+
+            //remove the new player from the end
+            temp.pop_back();
+
+            if (isNewAdmin) {
+                //find the last admin in the *existing* portion
+                int lastAdmin = -1;
+                for (int i = 0; i < (int)temp.size(); ++i) {
+                    auto p = temp[i];
+                    if (!p || !p->pSteam64) continue;
+                    if (std::find(adminIds.begin(), adminIds.end(),
+                        p->pSteam64->ToString())
+                        != adminIds.end())
+                    {
+                        lastAdmin = i;
+                    }
+                }
+                //insert right *after* them (or at 0 if none found)
+                int insertPos = lastAdmin + 1;
+                temp.insert(temp.begin() + insertPos, newPlayer);
+                
+                Infinity::Logging::Warnln("Moving prioritized admin (%s) from queue position: %d to %d", newId.c_str(), newPlayer->positionIdx, insertPos);
+            }
+            else {
+                temp.push_back(newPlayer); //non-admins just go to the back
+            }
+
+            //copy back into the raw array
+            for (int i = 0; i < (int)temp.size(); ++i)
+                queue->List[i] = temp[i];
+        }
+
+        void WatchForPlayer(uint32_t dpid, NetworkTypes::LoginMachine* loginMachine)
+        {
+            std::thread([=]() {
+                auto start = std::chrono::steady_clock::now();
+                auto timeout = std::chrono::seconds(5);
+
+                while (true){
+                    if (std::chrono::steady_clock::now() - start >= timeout) {
+                        Infinity::Logging::Errorln("WatchForPlayer(%u): timed out while looking for player in queue", dpid);
+                        return;
+                    }
+
+                    if (loginMachine->QueueSize <= 0) {
+                        Infinity::Logging::Warnln("WatchForPlayer(%u): queue empty, aborting", dpid);
+                        return;
+                    }
+
+                    auto player = loginMachine->GetQueuedPlayer(dpid);
+                    if (player) {
+                        //check if engine has set the index yet
+                        if (player->positionIdx >= 0) {
+                            Infinity::Logging::Debugln("WatchForPlayer(%u)::(%s) found at position %d",player->dpid, player->pSteam64->ToString().c_str(), player->positionIdx);
+                            ShuffleQueue(dpid);
+
+                            //Callback is just for demo purpose...we don't want to call it.
+                            //Infinity::CallEnforceMethod(ExampleClass::enfInstancePtr, "OnAddToQueue", player->dpid, player->pSteam64->steamId, player->pName, player->positionIdx);
+                            return;
+                        }
+                        // else still waiting for positionIdx != -1
+                    }
+
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+            }).detach();
+        }
 
         //Detour engine function, this gets called when engine creates LoginMachine & NetworkServer
         static __int64 __fastcall InitLoginMachine(__int64* a1, NetworkTypes::NetworkServer* a2)
@@ -84,77 +220,28 @@ namespace PluginUtils{
             f_OnAddToQueue(loginMachine, dpid, steam64Id, name);
 
             Infinity::Logging::Debugln(
-                "OnAddToQueue(a1=0x%llX, a2=%d, a3=%s, a4=\"%s\")",
+                "OnAddToQueue(LoginMachine=0x%llX, dpid=%d, steam64Id=%s, name=\"%s\")",
                 (unsigned long long)loginMachine,
                 dpid,
                 steam64Id,
                 name ? name : "<null>"
             );
 
-            
-            auto loginMachinePtr = p_EnfLoginMachine;
-            std::thread([dpid, loginMachinePtr]() {
-                NetworkTypes::queued_player* player = loginMachinePtr->GetQueuedPlayer(static_cast<int32_t>(dpid));
-  
-                //wait until index is populated by engine
-                while (player && player->positionIdx == -1)
-                {
-                    if (loginMachinePtr->QueueSize == 0) {
-                        Infinity::Logging::Warnln("Queue is empty...");
-                        break;
-                    }
-                    Sleep(50);
-                }
-
-                if (player && loginMachinePtr->QueueSize > 0)
-                {
-                    Infinity::Logging::Warnln("pos: %d", player->positionIdx);
-                    Infinity::CallEnforceMethod(ExampleClass::enfInstancePtr, "OnAddToQueue", player->dpid, player->pSteam64->steamId, player->pName, player->positionIdx);
-                }
-
-            }).detach();
-            
-
-            /*
-            NetworkTypes::queued_players* queue = p_EnfNetworkServer->pQueue;
-            if (queue && size > 1)
-            {
-                // 1) Grab the newly-added player from the last slot
-                NetworkTypes::queued_player* newPlayer = queue->List[size - 1];
-
-                // 2) Shift the existing [0 .. size-2] entries one slot right
-                std::memmove(
-                    &queue->List[1],               // dest: start writing at index 1
-                    &queue->List[0],               // src: read from index 0
-                    (size - 1) * sizeof(queue->List[0])
-                );
-
-                // 3) Put the prioritized player at the front
-                queue->List[0] = newPlayer;
-            }
-
-            Infinity::Logging::Debugln("Current queue size: %d", size);
-            NetworkTypes::queued_player* player = queue->List[0];
-            Infinity::Logging::Debugln("Player dpid: (%d) a4=\"%s\" Steam64Id: (%s) @ queue pos: %d", player->dpid, player->pName, player->pSteam64->steamId, player->positionIdx);
-            */
+            WatchForPlayer(static_cast<int32_t>(dpid), p_EnfLoginMachine);
         }
 
         //Detour engine function, this gets called when a player is removed from queue
         static __int64 __fastcall OnRemoveFromQueue(__int64 loginMachine, unsigned int dpid)
         {
-            Infinity::Logging::Debugln("OnRemoveFromQueue(a1=0x%llX, a2=%d)", (unsigned long long)loginMachine, dpid);
+            __int64 _result = f_OnRemoveFromQueue(loginMachine, dpid); //Call original
+            Infinity::Logging::Debugln("OnRemoveFromQueue(LoginMachine=0x%llX, dpid=%d)", (unsigned long long)loginMachine, dpid);
 
-            if (p_EnfLoginMachine->QueueSize > 0)
-            {
-                NetworkTypes::queued_player* player = p_EnfLoginMachine->GetQueuedPlayer(dpid);
-                if (player)
-                {
-                    Infinity::Logging::Warnln("Removed player %d from queue", player->dpid);
-                    Infinity::CallEnforceMethod(ExampleClass::enfInstancePtr, "OnRemoveFromQueue", player->dpid);
-                }
-            }
+            Infinity::Logging::Warnln("Removed player %d from queue", dpid);
 
-            return f_OnRemoveFromQueue(loginMachine, dpid); //Call original
+            //Callback is just for demo purpose...we don't want to call it.
+            //Infinity::CallEnforceMethod(ExampleClass::enfInstancePtr, "OnRemoveFromQueue", dpid);
+
+            return _result;
         }
 
         //Detour engine function, this gets called when a player connects most early stage possible.
