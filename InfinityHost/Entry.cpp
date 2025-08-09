@@ -116,7 +116,7 @@ void start(GInfinity* g_pInfinity)
 			// check if timeout
 			auto end = std::chrono::steady_clock::now();
 			auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-			if (elapsed >= 5)
+			if (elapsed >= 30)
 			{
 				Errorln("Registration timeout. Library out of date?");
 				return; 
