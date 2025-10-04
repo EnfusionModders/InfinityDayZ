@@ -169,7 +169,7 @@ namespace PluginUtils{
                 ExampleClass::CreateSingleton();
             }
             
-            return result;
+            return f_InitLoginMachine(a1, networkServer);
         }
 
         //Detour Event: Called when a player is added to queue.
