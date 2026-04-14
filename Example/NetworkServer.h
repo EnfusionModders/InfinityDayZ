@@ -45,13 +45,13 @@ namespace PluginUtils{
         const std::string PATTERN_FN_STAGE_DISCONNECT = "49 8B C0 44 0F B6 C2"; //DIAG & RETAIL
         
         //RETAIL
-        std::string PATTERN_INIT_NETWORK_SERVER     = "48 83 EC ? E8 ? ? ? ? 33 C0 48 89 51 ? 48 89 41 ? 48 89 41 ? 48 89 41";
+        std::string PATTERN_INIT_NETWORK_SERVER     = "48 89 5C 24 ? 57 48 83 EC ? 48 8B DA 48 8B F9 E8 ? ? ? ? 33 C0 48 89 5F ? 48 8B 5C 24 ? 48 89 47 ? 48 89 47 ? 48 89 47";
         std::string PATTERN_FN_COMMIT_DISCONNECT    = "48 8B C2 8B D1 48 8B C8 E9 ? ? ? ? ? ? ? 48 8B C2";
-        std::string PATTERN_FN_PLAYER_CONNECT       = "48 89 5C 24 ? 55 41 56 41 57 48 83 EC ? 49 8B E9";
-        std::string PATTERN_FN_PLAYER_DISCONNECT    = "40 55 53 56 41 55 41 57 48 8B EC";
-        std::string PATTERN_FN_ON_QUEUE_ADD         = "4C 89 4C 24 ? 89 54 24 ? 55 53";
-        std::string PATTERN_FN_ON_QUEUE_REMOVE      = "48 89 74 24 ? 57 48 83 EC ? 8B FA 48 8B F1 E8 ? ? ? ? 8B 4E";
-        std::string PATTERN_IS_PRIORITY_USER = "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 48 89 4C 24 ? 57 41 56 41 57 48 83 EC ? 49 8B C9";
+        std::string PATTERN_FN_PLAYER_CONNECT       = "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 49 8B F9 48 8B EA";
+        std::string PATTERN_FN_PLAYER_DISCONNECT    = "40 55 53 41 56 48 8D 6C 24 ? 48 81 EC ? ? ? ? 44 8B F2";
+        std::string PATTERN_FN_ON_QUEUE_ADD         = "4C 89 4C 24 ? 89 54 24 ? 55 53 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ? 48 81 EC ? ? ? ? 4C 8B E9";
+        std::string PATTERN_FN_ON_QUEUE_REMOVE      = "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 8B FA 48 8B 0D ? ? ? ? E8";
+        std::string PATTERN_IS_PRIORITY_USER = "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 41 56 41 57 48 83 EC ? 49 8B C9";
 
         NetworkTypes::NetworkServer* p_EnfNetworkServer = nullptr;
         NetworkTypes::LoginMachine* p_EnfLoginMachine = nullptr;
@@ -219,8 +219,8 @@ namespace PluginUtils{
         static __int64 __fastcall OnRemoveFromQueue(__int64 loginMachine, unsigned int dpid)
         {
             __int64 _result = f_OnRemoveFromQueue(loginMachine, dpid); //Call original
-            // Infinity::Logging::Debugln("OnRemoveFromQueue(LoginMachine=0x%llX, dpid=%d)", (unsigned long long)loginMachine, dpid);
-            // Infinity::Logging::Warnln("Removed player %d from queue", dpid);
+            Infinity::Logging::Debugln("OnRemoveFromQueue(LoginMachine=0x%llX, dpid=%d)", (unsigned long long)loginMachine, dpid);
+            Infinity::Logging::Warnln("Removed player %d from queue", dpid);
 
             //Callback is just for demo purpose...we don't want to call it.
             //Infinity::CallEnforceMethod(ExampleClass::enfInstancePtr, "OnRemoveFromQueue", dpid);
@@ -234,15 +234,15 @@ namespace PluginUtils{
             //call the original
             __int64 ret = f_OnPlayerConnect(dpid, steam64Id, flag, name, a5, networkServer);
 
-            // Infinity::Logging::Debugln(
-            //     "OnPlayerConnect(a1=%d, a2=%s, a3=%d, a4=\"%s\", a5=0x%llX, a6=0x%llX)",
-            //     dpid,
-            //     steam64Id,
-            //     (int)flag,
-            //     name ? name : "<null>",
-            //     (unsigned long long)a5,
-            //     (unsigned long long)networkServer
-            // );
+             Infinity::Logging::Debugln(
+                 "OnPlayerConnect(a1=%d, a2=%s, a3=%d, a4=\"%s\", a5=0x%llX, a6=0x%llX)",
+                 dpid,
+                 steam64Id,
+                 (int)flag,
+                 name ? name : "<null>",
+                 (unsigned long long)a5,
+                 (unsigned long long)networkServer
+             );
 
             return ret;
         }
@@ -250,7 +250,7 @@ namespace PluginUtils{
         //Detour Event: Called when player disconnect is completed.
         static __int64 __fastcall OnPlayerDisconnected(__int64* networkServer, unsigned int dpid)
         {
-            // Infinity::Logging::Debugln("OnPlayerDisconnected(a1=0x%llX, a2=%d)", (unsigned long long)networkServer, dpid);
+            Infinity::Logging::Debugln("OnPlayerDisconnected(a1=0x%llX, a2=%d)", (unsigned long long)networkServer, dpid);
 
             //call original
             return f_OnPlayerDisconnected(networkServer, dpid);
@@ -259,6 +259,11 @@ namespace PluginUtils{
         //Detour Event: Called to check a players priority.
         static __int64 __fastcall IsPriorityUser(char* userSteamList, char* steam64Id, __int64 a2, __int64 a3)
         {
+            Infinity::Logging::Debugln(
+                "IsPriorityUser(userSteamList=0x%llX)",
+                (unsigned long long)userSteamList
+            );
+
             if (!p_EnfUserListSteam) p_EnfUserListSteam = reinterpret_cast<NetworkTypes::UserListSteam*>(userSteamList);
             if (p_EnfUserListSteamSomePtr == -1) p_EnfUserListSteamSomePtr = a3;
             
@@ -304,7 +309,7 @@ namespace PluginUtils{
             //Determines user's priority event
             if (!AttachDetour(PATTERN_IS_PRIORITY_USER, f_IsPriorityUser, IsPriorityUser, "FnIsPriorityUser"))
                 return false;
-            
+
             return true;
         }
 

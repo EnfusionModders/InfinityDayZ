@@ -15,7 +15,7 @@ namespace Infinity {
 			static constexpr uint32_t ARG_TYPE_FLOAT = 0x00030000; // float
 			static constexpr uint32_t ARG_TYPE_STRING = 0x00050000; // string
 			static constexpr uint32_t ARG_TYPE_VECTOR = 0x00000000; // ????
-			static constexpr uint32_t ARG_TYPE_ENTITY = 0x00060000; // EntityRef
+			static constexpr uint32_t ARG_TYPE_ENTITY = 0x60000000; // EntityRef
 
 			//——— flags  ———
 			static constexpr uint32_t ARG_FLAG_NONE = 0x00000000;
@@ -24,10 +24,10 @@ namespace Infinity {
 			//--- custom function context data structure
 			typedef struct NativeArgument
 			{
-				void* Value;
-				void* VariableName;
-				uint8_t _pad0[0x20 - 0x10];
-				void* pContext;
+				void* Value;              // 0x00
+				void* VariableName;       // 0x08
+				uint8_t _pad0[0x08];      // 0x10 - 0x17
+				void* pContext;           // 0x18
 			} NativeArgument, * PNativeArgument;
 
 			typedef struct Arguments
@@ -177,26 +177,30 @@ namespace Infinity {
 				class ManagedClass
 				{
 				private:
-					char pad_0000[16]; //0x0000
+					char pad_0000[16];                 // 0x0000
 				public:
-					char* name; //0x0010
-					class ScriptModule* pScriptModule; //0x0018
-					class ManagedClass* pParentType; //0x0020
+					char* name;                        // 0x0010
+					class ScriptModule* pScriptModule; // 0x0018
+					class ManagedClass* pParentType;   // 0x0020
 				private:
-					char pad_0028[16]; //0x0028
+					char pad_0028[16];                 // 0x0028
 				public:
-					typename_variables* pVariables; //0x0038
+					typename_variables* pVariables;    // 0x0038
 				private:
-					char pad_0040[4]; //0x0040
+					char pad_0040[4];                  // 0x0040
 				public:
-					int32_t VarCount; //0x0044
-					typename_functions* pFunctions; //0x0048
+					int32_t VarCount;                  // 0x0044
 				private:
-					char pad_0050[4]; //0x0050
+					char pad_0048[24];                 // 0x0048
 				public:
-					int32_t functionsCount; //0x0054
+					int32_t functionsCount;            // 0x0060
 				private:
-					char pad_0064[64]; //0x0064
+					char pad_0064[4];                  // 0x0064
+				public:
+					typename_functions* pFunctions;    // 0x0068
+				private:
+					char pad_0070[52];                 // 0x0070
+
 				public:
 					typename_function* FindFunctionPointer(std::string fnName)
 					{
@@ -218,39 +222,40 @@ namespace Infinity {
 						}
 						return nullptr;
 					}
-				}; //Size: 0x00A4
+				}; // Size: 0x00A4
 
 				
 				class type
 				{
 				private:
-					char pad_0000[8];            // 0x0000
+					char pad_0000[8];                  // 0x0000
 				public:
-					uint32_t flags;              // 0x0008
+					uint32_t flags;                    // 0x0008
 				private:
-					char pad_000C[4];            // 0x000C
+					char pad_000C[4];                  // 0x000C
 				public:
-					char* name;           // 0x0010
-					ScriptModule* pScriptModule; // 0x0018
+					char* name;                        // 0x0010
+					ScriptModule* pScriptModule;       // 0x0018
 				private:
-					char pad_0020[8];            // 0x0020
+					char pad_0020[8];                  // 0x0020
 				public:
-					type* pParent;        // 0x0028
+					type* pParent;                     // 0x0028
 				private:
-					char pad_0030[8];            // 0x0030
+					char pad_0030[8];                  // 0x0030
 				public:
-					typename_variables* pVariables; // 0x0038
+					typename_variables* pVariables;    // 0x0038
 				private:
-					char pad_0040[4];            // 0x0040
+					char pad_0040[4];                  // 0x0040
 				public:
-					uint32_t     variableCount;  // 0x0044
-					typename_functions* pFunctions; // 0x0048 (holds all types of functions, including proto engine ones)
+					uint32_t variableCount;            // 0x0044
 				private:
-					char _pad_0050[4];           // 0x0050–0x53
+					char pad_0048[32];                 // 0x0048
 				public:
-					uint32_t     functionCount;  // 0x0054
+					typename_functions* pFunctions;    // 0x0068
+				public:
+					uint32_t functionCount;            // 0x0070
 				private:
-					char _pad_0058[136];         // 0x0058–0xDF (fills out to sizeof 0xE0)
+					char pad_0074[108];                // 0x0074–0x00DF
 				};
 
 				class WeakPtrTracker

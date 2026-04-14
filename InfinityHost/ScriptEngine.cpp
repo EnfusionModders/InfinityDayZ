@@ -1,6 +1,6 @@
 ﻿#include <Windows.h>
-#include <stdio.h>
 #include <string>
+#include <vector>
 
 #include "Patterns.h"
 #include "Console.hpp"
@@ -18,6 +18,8 @@ BaseScriptManager* g_BaseScriptManager = NULL;
 FnEngineRegisterClass f_EngineRegisterClass = NULL;
 FnRegisterGlobalFunc f_RegisterGlobalFunc = NULL;
 EnforceScriptCtx g_pEnforceScriptContext = NULL; //ptr to Core module script ctx, used for passing context when registering global fn
+
+FnEngineRegisterFunction f_EngineRegisterFunction = NULL;
 
 static bool detourComplete = false;
 static int totalRegisteredClasses = 0;
@@ -108,7 +110,7 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 		{
 			res = FnRegStaticFns(moduleCtx, classInstance, fName, fPtr, 0, 1);//!One extra param on diag exe
 		}else{
-			res = FnRegStaticFns(moduleCtx, classInstance, fName, fPtr, 0); //!One less param on retail exe
+			res = FnRegStaticFns(moduleCtx, classInstance, fName, fPtr, 0, 1); //!One less param on retail exe
 		}
 		return (res != 0);
 	};
@@ -127,7 +129,13 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 	static FnRegisterClassFunctions FnRegFns = nullptr;
 	void* pImm = nullptr;
 
+	pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
+	if (pImm)
+	{
+		FnRegFns = reinterpret_cast<FnRegisterClassFunctions>(pImm);
+	}
 	//Diag exe uses different pattern
+	/*
 	if (IsDiagBuild())
 	{
 		pImm = (uint8_t*)Infinity::Utils::FindPattern(PATTERN_REG_DYNAMIC_PROTO_FUNCTION, GetModuleHandle(NULL), 0);
@@ -146,7 +154,8 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 			FnRegFns = reinterpret_cast<FnRegisterClassFunctions>(fnAddr);
 		}
 	}
-	
+	*/
+
 	if (!FnRegFns)
 	{
 		Errorln("!ERROR! Unable to locate subroutine call for dynamic function registration!");
@@ -170,6 +179,30 @@ __int64 EngineRegisterClass(__int64 moduleCtx, char* className, unsigned __int8 
 	return classInstance;
 }
 
+
+void DontStopGame(__int64 world, __int64 a2)
+{
+	Debugln("DontStopGame");
+}
+
+/*
+*  Intercept the registeration of engine functions such as CGame::RequestExit
+*/
+__int64 EngineRegisterFunction(__int64 a1, __int64 a2, char* name, PVOID addr, unsigned int a5)
+{
+	//Debugln("EngineRegisterFunction: %s", name);
+
+	if (std::string(name).find("RequestExit") != std::string::npos)
+	{
+		//Point function to different address
+		//return f_EngineRegisterFunction(a1, a2, (char*)("GlobalFnTest"), DontStopGame, a5);
+
+		return f_EngineRegisterFunction(a1, a2, name, addr, a5);
+	}
+
+	return f_EngineRegisterFunction(a1, a2, name, addr, a5);
+}
+
 bool InitScriptEngine()
 {
 	Debugln("Init script engine.");
@@ -181,12 +214,12 @@ bool InitScriptEngine()
 	PATTERN_REG_STATIC_PROTO_FUNCTION =
 		IsDiagBuild()
 		? "48 89 74 24 ? 57 48 83 EC ? 0F B6 44 24 ? 48 8B F1" //DIAG
-		: "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24"; //RETAIL
+		: "48 89 74 24 ? 57 48 83 EC ? 0F B6 44 24"; //RETAIL
 
 	PATTERN_REG_DYNAMIC_PROTO_FUNCTION =
 		IsDiagBuild()
 		? "48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24" //DIAG
-		: "E9 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B DA"; //RETAIL
+		: "48 89 5C 24 ? 48 89 6C 24 ? 48 89 74 24 ? 57 48 83 EC ? 48 8B FA 48 8B F1 48 8B CF"; //RETAIL
 
 	g_BaseScriptManager = new BaseScriptManager();
 
@@ -213,6 +246,18 @@ bool InitScriptEngine()
 		return false;
 	}
 	DetourAttach(&(PVOID&)f_RegisterGlobalFunc, RegisterGlobalFunction);
+	DetourTransactionCommit();
+
+	//Detour for registering functions
+	DetourTransactionBegin();
+	DetourUpdateThread(GetCurrentThread());
+	static auto ptrFnRegisterFn = Infinity::Utils::FindPattern("48 89 74 24 ? 57 48 83 EC ? 48 8B F1 E8 ? ? ? ? 8B 54 24", GetModuleHandle(NULL), 0);
+	f_EngineRegisterFunction = (FnEngineRegisterFunction)(ptrFnRegisterFn);
+	if (!f_EngineRegisterFunction) {
+		Errorln("InitScriptEngine: Error! pointer for FnEngineRegisterFunction cannot be found! Check pattern");
+		return false;
+	}
+	DetourAttach(&(PVOID&)f_EngineRegisterFunction, EngineRegisterFunction);
 	DetourTransactionCommit();
 
 	return true;

@@ -128,7 +128,7 @@ void ExampleClass::DynamicProtoNativeMethod(ManagedScriptInstance* selfPtr, Play
             /* value */        fn->name, //THIS CANNOT BE NULL/EMPTY
             /* variableName */ "#return.",
             /* pContext */     playerIdentity->pType->pScriptModule->pContext,
-            /* typeTag */      ARG_TYPE_ENTITY,
+            /* typeTag */      ARG_TYPE_ENTITY, //Flag of return type must be setup correctly, otherwise engine won't give you anything back!
             /* flags */        ARG_FLAG_NONE
         );
         FunctionResult* returnCtx = CreateFunctionResult(returnArg); //create context that will hold our return value which will be written by Enforce

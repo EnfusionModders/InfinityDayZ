@@ -109,7 +109,7 @@ void Infinity::InitPatterns()
     const std::string PATTERN_CALLUP_GLOBAL_METHOD =
         IsDiagBuild()
         ? "40 53 48 83 EC ? ? ? ? ? 48 8D 44 24 ? 48 8B DA 4C 8D 4C 24 ? 48 89 44 24 ? 0F 29 44 24 ? E8 ? ? ? ? 48 8B C3 48 83 C4 ? 5B C3 ? 40 53" //DIAG
-        : "40 53 48 83 EC ? ? ? ? ? 48 8D 44 24 ? 48 8B DA 4C 8D 4C 24 ? 48 89 44 24 ? 0F 29 44 24 ? E8 ? ? ? ? 48 8B C3 48 83 C4 ? 5B C3 ? 48 89 5C 24 ? 48 89 6C 24"; //RETAIL
+        : "40 53 48 83 EC ? ? ? ? ? 48 8D 44 24 ? 48 8B DA 4C 8D 4C 24 ? 48 89 44 24 ? 0F 29 44 24 ? E8 ? ? ? ? 48 8B C3 48 83 C4 ? 5B C3 ? 40 53"; //RETAIL
 
     //DayZ's console logging
     Infinity::f_LogToConsole = reinterpret_cast<Infinity::FnLogToConsole>(Infinity::Utils::FindPattern(PATTERN_PRINT_TO_CONSOLE, GetModuleHandle(NULL), 0));
@@ -133,7 +133,7 @@ void Infinity::InitPatterns()
     const std::string PATTEN_CALL_CLEANUP_METHOD =
         IsDiagBuild()
         ? "40 53 48 83 EC ? ? ? ? 48 85 DB 74 ? 48 8B CB E8 ? ? ? ? 84 C0" //DIAG
-        : "48 83 EC ? ? ? ? 4D 85 C9 74 ? 49 8B C9"; //RETAIL
+        : "40 53 48 83 EC ? ? ? ? 48 85 DB 74 ? 48 8B CB E8 ? ? ? ? 84 C0"; //RETAIL
 
     //Engine cleanup method
     Infinity::f_CleanupUpMethodCall = reinterpret_cast<FnCleanupMethodCall>(Infinity::Utils::FindPattern(PATTEN_CALL_CLEANUP_METHOD, GetModuleHandle(NULL), 0));
@@ -156,34 +156,17 @@ EnfTypes::ManagedScriptInstance* Infinity::CreateEnforceInstance(EnfTypes::Scrip
     __int64 v0 = NULL;
     __int64 instancePtr = NULL;
 
-    if (IsDiagBuild())
-    {
-        //DIAG
-        using FnMagicCallDiag = __int64(__fastcall*)(__int64 a1, char a2);
-        static FnMagicCallDiag f_FnMagicCallDiag = reinterpret_cast<FnMagicCallDiag>(Infinity::Utils::FindPattern("40 57 48 83 EC ? 48 8B F9 45 33 C9", GetModuleHandle(NULL), 0));
-        
-        if (!f_FnMagicCallDiag) {
-            Errorln("CreateEnforceInstance: failed to locate f_FnMagicCallDiag, check pattern!");
-            return nullptr;
-        }
+    //DIAG & RETAIL (v1.29)
+    using FnMagicCallDiag = __int64(__fastcall*)(__int64 a1, char a2);
+    static FnMagicCallDiag f_FnMagicCallDiag = reinterpret_cast<FnMagicCallDiag>(Infinity::Utils::FindPattern("40 57 48 83 EC ? 48 8B F9 45 33 C9", GetModuleHandle(NULL), 0));
 
-        v0 = f_CreateInstance(pModule, typeName.c_str(), 0);
-        instancePtr = f_FnMagicCallDiag(v0, 1);
+    if (!f_FnMagicCallDiag) {
+        Errorln("CreateEnforceInstance: failed to locate f_FnMagicCallDiag, check pattern!");
+        return nullptr;
     }
-    else
-    {
-       //RETAIL
-       using FnMagicCall = __int64(__fastcall*)(__int64 a1);
-       static FnMagicCall f_FnMagicCall = reinterpret_cast<FnMagicCall>(Infinity::Utils::FindPattern("48 89 5C 24 ? 57 48 83 EC ? 48 8B F9 48 8B D1", GetModuleHandle(NULL), 0));
 
-       if (!f_FnMagicCall) {
-           Errorln("CreateEnforceInstance: failed to locate f_FnMagicCall, check pattern!");
-           return nullptr;
-       }
-
-       v0 = f_CreateInstance(pModule, typeName.c_str(), 0);
-       instancePtr = f_FnMagicCall(v0);
-    }
+    v0 = f_CreateInstance(pModule, typeName.c_str(), 0);
+    instancePtr = f_FnMagicCallDiag(v0, 1);
 
     if (instancePtr != 0)
     {
