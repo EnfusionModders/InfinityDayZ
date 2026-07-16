@@ -61,7 +61,7 @@ inline bool IsDebug(){ return IS_DEBUG; }
 
 inline bool IsConsoleDisabled()
 {
-	return IsParamDefined(L"-noconsole");
+	return !IsParamDefined(L"-showconsole");
 }
 
 inline int PrintlnColored(const char* fmt, WORD colorAttr, ...)
